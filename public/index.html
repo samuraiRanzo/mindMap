@@ -593,14 +593,14 @@
 
     const W   = window.innerWidth;
     const H   = window.innerHeight;
-    const TOP = 52;
-    const PAD = 50;
-    const CW  = 224;
+    const TOP = 20;
+    const PAD = 30;
+    const CW  = 150;
     const CH  = 170;
-
-    const cols  = Math.ceil(Math.sqrt(cats.length + 0.5));
-    const rows  = Math.ceil(cats.length / cols);
-    const cellW = (W - PAD * 2) / cols;
+    const maxDY = 15;
+    const cellW = 150;   // approximate cell width
+    const cols = Math.floor((W - PAD * 2) / cellW);
+    const rows = Math.ceil(cats.length / cols);
     const cellH = (H - TOP - PAD * 2) / rows;
 
     cats.forEach((cat, i) => {
@@ -608,10 +608,8 @@
       const col = i % cols;
       const row = Math.floor(i / cols);
 
-      const maxDX = Math.max(0, cellW - CW - 20);
-      const maxDY = Math.max(0, cellH - CH - 20);
-      const x     = PAD + col * cellW + 10 + Math.random() * maxDX;
-      const y     = TOP + PAD + row * cellH + 10 + Math.random() * maxDY;
+      const x = PAD + col * cellW + Math.random() * 20;      // small random X offset
+      const y = TOP + PAD + row * cellH + Math.random() * maxDY;
 
       const rr = () => Math.floor(Math.random() * 22 + 42);
       const borderRadius = `${rr()}% ${rr()}% ${rr()}% ${rr()}% / ${rr()}% ${rr()}% ${rr()}% ${rr()}%`;
@@ -620,9 +618,10 @@
         category: cat.category,
         emoji: cat.emoji,
         subcategories: cat.subcategories, // keep subcategories here
-        x: Math.max(PAD, Math.min(x, W - CW - PAD)),
-        y: Math.max(TOP + 10, Math.min(y, H - CH - 10)),
-        width: CW,
+        x: Math.min(x, W - 100), // ensure cloud fits in width
+        y: Math.min(y, H - 60),  // ensure cloud fits in height
+        width: 120,
+        height: 50,
         color:  p.color,
         bg:     p.bg,
         border: p.border,
