@@ -103,13 +103,19 @@ IMPORTANT: Return only valid JSON strictly matching the schema. Do NOT include a
     });
     console.log(response)
     // Safely access parsed output
-    const data = response.output?.[0]?.content?.[0]?.parsed;
+    let data = response.output?.[0]?.content?.[0]?.parsed;
+
+// fallback: try parsing raw text if parsed is empty
+    if (!data && response.output?.[0]?.content?.[0]?.text) {
+      try {
+        data = JSON.parse(response.output[0].content[0].text);
+      } catch (e) {
+        console.error("Failed to JSON.parse raw text:", response.output[0].content[0].text);
+      }
+    }
 
     if (!data) {
-      console.error("No valid parsed JSON returned:", response);
-      return res
-          .status(500)
-          .json({ error: "Failed to parse mind map from OpenAI response." });
+      return res.status(500).json({ error: "Failed to parse mind map from OpenAI response." });
     }
 
     return res.status(200).json(data);
