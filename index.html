@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MindCloud — AI Mind Mapper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #07071a;
+      --text: #dde0f5;
+      --muted: #52527a;
+      --border: rgba(255,255,255,0.07);
+      --surface: rgba(255,255,255,0.04);
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      font-family: 'Syne', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    /* ========================================
+       SCREENS
+    ======================================== */
+    .screen {
+      position: fixed;
+      inset: 0;
+      transition: opacity 0.45s ease, transform 0.45s ease;
+    }
+    .screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.97) translateY(8px);
+    }
+
+    /* ========================================
+       INPUT SCREEN
+    ======================================== */
+    #input-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      gap: 1.6rem;
+      position: relative;
+    }
+
+    /* Ambient orbs */
+    #input-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 55% 45% at 50% -10%, rgba(108,92,231,0.18) 0%, transparent 65%),
+        radial-gradient(ellipse 35% 40% at 85% 85%, rgba(0,206,201,0.12) 0%, transparent 55%),
+        radial-gradient(ellipse 30% 35% at 10% 75%, rgba(253,121,168,0.09) 0%, transparent 55%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    #input-screen > * { position: relative; z-index: 1; }
+
+    .logo-wrap { text-align: center; }
+
+    .logo {
+      font-size: clamp(2.8rem, 6vw, 4.2rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      background: linear-gradient(130deg, #e0deff 0%, #7c6cfc 45%, #4fd1c5 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      display: block;
+    }
+
+    .tagline {
+      margin-top: 0.4rem;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+
+    .input-card {
+      width: 100%;
+      max-width: 540px;
+      background: rgba(255,255,255,0.032);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 20px;
+      padding: 1.5rem;
+      backdrop-filter: blur(24px);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+
+    .field-label {
+      display: block;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.65rem;
+    }
+
+    #words-input {
+      width: 100%;
+      min-height: 148px;
+      background: rgba(255,255,255,0.028);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      padding: 0.9rem 1rem;
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.82rem;
+      line-height: 1.8;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+    #words-input:focus {
+      border-color: rgba(124,108,252,0.45);
+      box-shadow: 0 0 0 3px rgba(124,108,252,0.1);
+    }
+    #words-input::placeholder { color: #3a3a60; }
+
+    #error-msg {
+      display: none;
+      margin-top: 0.5rem;
+      color: #ff8fa3;
+      font-size: 0.75rem;
+      letter-spacing: 0.02em;
+    }
+    #error-msg.show { display: block; }
+
+    #map-btn {
+      margin-top: 0.9rem;
+      width: 100%;
+      padding: 0.9rem;
+      background: linear-gradient(130deg, #7c6cfc 0%, #4fd1c5 100%);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
+    }
+    #map-btn:hover:not(:disabled) {
+      opacity: 0.88;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 36px rgba(124,108,252,0.4);
+    }
+    #map-btn:active:not(:disabled) { transform: translateY(0); }
+    #map-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .input-hint {
+      color: var(--muted);
+      font-size: 0.72rem;
+      line-height: 1.9;
+      text-align: center;
+      max-width: 420px;
+      letter-spacing: 0.01em;
+    }
+
+    /* ========================================
+       LOADING OVERLAY
+    ======================================== */
+    #loading {
+      position: fixed;
+      inset: 0;
+      background: rgba(7,7,26,0.88);
+      backdrop-filter: blur(16px);
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.2rem;
+    }
+    #loading.show { display: flex; }
+
+    .orbit {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      border-top-color: #7c6cfc;
+      border-right-color: rgba(124,108,252,0.3);
+      animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-label {
+      color: var(--muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    /* ========================================
+       CANVAS SCREEN
+    ======================================== */
+    #canvas-screen {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Dot grid */
+    #canvas-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px);
+      background-size: 28px 28px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Ambient glows */
+    #canvas-screen::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 45% 38% at 15% 15%, rgba(108,92,231,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 38% 45% at 88% 85%, rgba(79,209,197,0.06) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Topbar */
+    #topbar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.4rem;
+      background: rgba(7,7,26,0.65);
+      backdrop-filter: blur(24px);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      z-index: 100;
+    }
+
+    .topbar-logo {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(130deg, #e0deff, #7c6cfc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .topbar-hint {
+      font-size: 0.66rem;
+      color: var(--muted);
+      letter-spacing: 0.07em;
+      text-align: center;
+    }
+    .topbar-hint span {
+      display: inline-block;
+      margin: 0 0.6rem;
+    }
+    .topbar-hint .sep { color: #2a2a48; }
+
+    #reset-btn {
+      padding: 0.38rem 1rem;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      color: var(--muted);
+      font-family: 'Syne', sans-serif;
+      font-size: 0.74rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #reset-btn:hover {
+      background: rgba(255,255,255,0.09);
+      color: var(--text);
+      border-color: rgba(255,255,255,0.14);
+    }
+
+    /* SVG connections layer */
+    #svg-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+      overflow: visible;
+    }
+
+    /* Clouds container */
+    #clouds-container {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+    }
+
+    /* ========================================
+       CLOUD NODE
+    ======================================== */
+    .cloud-node {
+      position: absolute;
+      min-width: 180px;
+      max-width: 248px;
+      padding: 1.1rem 1.3rem 1.4rem;
+      cursor: grab;
+      transition: box-shadow 0.3s, filter 0.25s;
+      animation: cloudPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+
+    @keyframes cloudPop {
+      from { opacity: 0; transform: scale(0.25) translateY(30px); }
+      to   { opacity: 1; transform: scale(1)    translateY(0);     }
+    }
+
+    .cloud-node.is-dragging {
+      cursor: grabbing !important;
+      animation: none !important;
+      z-index: 80 !important;
+      transition: box-shadow 0.15s;
+    }
+
+    .cloud-node.is-dim {
+      filter: brightness(0.38) saturate(0.3);
+    }
+
+    .cloud-node.is-target {
+      z-index: 70;
+      filter: brightness(1.15);
+    }
+
+    /* Delete button (top-right, visible on hover) */
+    .cloud-x {
+      position: absolute;
+      top: 7px; right: 7px;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: rgba(255,80,80,0.12);
+      border: 1px solid rgba(255,80,80,0.28);
+      color: rgba(255,130,130,0.8);
+      font-size: 9px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s, background 0.2s;
+      z-index: 5;
+    }
+    .cloud-node:hover .cloud-x { opacity: 1; }
+    .cloud-x:hover { background: rgba(255,80,80,0.28); color: #fff; }
+
+    /* Header */
+    .cloud-header {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding-bottom: 0.6rem;
+      margin-bottom: 0.65rem;
+    }
+
+    .cloud-emoji { font-size: 1.1rem; line-height: 1; }
+
+    .cloud-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* Words */
+    .cloud-words {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .word-pill {
+      padding: 0.2rem 0.55rem;
+      border-radius: 30px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.68rem;
+      background: rgba(255,255,255,0.065);
+      border: 1px solid rgba(255,255,255,0.09);
+      color: var(--text);
+      line-height: 1.5;
+      white-space: nowrap;
+    }
+
+    /* Connect handle */
+    .connect-handle {
+      position: absolute;
+      bottom: 9px; right: 9px;
+      width: 17px; height: 17px;
+      border-radius: 50%;
+      border: 2px solid currentColor;
+      background: rgba(7,7,26,0.85);
+      cursor: crosshair;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
+      z-index: 6;
+    }
+    .connect-handle::after {
+      content: '';
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .cloud-node:hover .connect-handle { opacity: 1; }
+    .connect-handle:hover {
+      transform: scale(1.4);
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    /* ========================================
+       CONNECTION DELETE BUTTON
+    ======================================== */
+    .conn-mid-btn {
+      position: absolute;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: rgba(7,7,26,0.92);
+      border: 1.5px solid rgba(255,255,255,0.2);
+      color: rgba(255,130,130,0.8);
+      font-size: 9px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      z-index: 40;
+      transition: opacity 0.2s, transform 0.2s, border-color 0.2s;
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.7);
+    }
+    .conn-mid-btn:hover {
+      opacity: 1 !important;
+      transform: translate(-50%, -50%) scale(1.15);
+      border-color: rgba(255,100,100,0.6);
+      background: rgba(255,60,60,0.2);
+    }
+    #clouds-container:hover .conn-mid-btn { opacity: 0.55; }
+
+  </style>
+</head>
+<body>
+
+  <!-- ===================== INPUT SCREEN ===================== -->
+  <div id="input-screen" class="screen">
+    <div class="logo-wrap">
+      <span class="logo">MindCloud</span>
+      <div class="tagline">AI-Powered Mind Mapping</div>
+    </div>
+
+    <div class="input-card">
+      <label class="field-label" for="words-input">Your words &amp; ideas</label>
+      <textarea
+        id="words-input"
+        placeholder="e.g. Machine Learning, Meditation, Python, Coffee, Sleep, Data Science, Running, TensorFlow, Yoga, JavaScript..."
+        spellcheck="false"
+      ></textarea>
+      <div id="error-msg">Please enter at least 3 words or phrases to map.</div>
+      <button id="map-btn" onclick="handleMap()">Map My Mind →</button>
+    </div>
+
+    <p class="input-hint">
+      Enter words or phrases separated by commas or new lines.<br/>
+      AI will group them into thought clusters and visualize them<br/>
+      as draggable clouds you can freely connect.
+    </p>
+  </div>
+
+  <!-- ===================== LOADING ===================== -->
+  <div id="loading">
+    <div class="orbit"></div>
+    <div class="loading-label">AI is mapping your mind…</div>
+  </div>
+
+  <!-- ===================== CANVAS SCREEN ===================== -->
+  <div id="canvas-screen" class="screen hidden">
+
+    <div id="topbar">
+      <div class="topbar-logo">MindCloud</div>
+      <div class="topbar-hint">
+        <span>Drag cloud to move</span>
+        <span class="sep">·</span>
+        <span>Drag <strong style="color:#aaa">●</strong> handle to connect</span>
+        <span class="sep">·</span>
+        <span>Hover connection → click ✕ to remove</span>
+      </div>
+      <button id="reset-btn" onclick="resetApp()">← New Map</button>
+    </div>
+
+    <!-- SVG for bezier connections + temp line -->
+    <svg id="svg-layer" xmlns="http://www.w3.org/2000/svg"></svg>
+
+    <!-- Cloud DOM nodes + connection mid-buttons -->
+    <div id="clouds-container"></div>
+
+  </div>
+
+  <script>
+  // ══════════════════════════════════════════════════════════════
+  //  PALETTE  (color, translucent bg, border)
+  // ══════════════════════════════════════════════════════════════
+  const PALETTE = [
+    { color:'#7c6cfc', bg:'rgba(124,108,252,0.11)', border:'rgba(124,108,252,0.28)' },
+    { color:'#4fd1c5', bg:'rgba(79,209,197,0.1)',   border:'rgba(79,209,197,0.26)'  },
+    { color:'#ff8a80', bg:'rgba(255,138,128,0.1)',  border:'rgba(255,138,128,0.26)' },
+    { color:'#ffd166', bg:'rgba(255,209,102,0.1)',  border:'rgba(255,209,102,0.26)' },
+    { color:'#a29bfe', bg:'rgba(162,155,254,0.1)',  border:'rgba(162,155,254,0.26)' },
+    { color:'#55efc4', bg:'rgba(85,239,196,0.1)',   border:'rgba(85,239,196,0.26)'  },
+    { color:'#fd79a8', bg:'rgba(253,121,168,0.1)',  border:'rgba(253,121,168,0.26)' },
+    { color:'#fdcb6e', bg:'rgba(253,203,110,0.1)',  border:'rgba(253,203,110,0.26)' },
+  ];
+
+  // ══════════════════════════════════════════════════════════════
+  //  STATE
+  // ══════════════════════════════════════════════════════════════
+  let clouds      = [];   // { id, category, emoji, words, x, y, color, bg, border, borderRadius, el }
+  let connections = [];   // { id, fromId, toId }
+  let dragging    = null; // { cloudId, offsetX, offsetY }
+  let connecting  = null; // { fromId, x1, y1, x2, y2 }
+  let uid         = 0;
+
+  const genId = (prefix) => `${prefix}_${uid++}`;
+
+  // ══════════════════════════════════════════════════════════════
+  //  INPUT HANDLER
+  // ══════════════════════════════════════════════════════════════
+  async function handleMap() {
+    const raw   = document.getElementById('words-input').value;
+    const words = raw.split(/[,\n]+/).map(w => w.trim()).filter(Boolean);
+
+    if (words.length < 3) {
+      document.getElementById('error-msg').classList.add('show');
+      return;
+    }
+    document.getElementById('error-msg').classList.remove('show');
+    document.getElementById('map-btn').disabled = true;
+
+    setLoading(true);
+    try {
+      const cats = await categorize(words);
+      buildScene(cats);
+      switchScreen('canvas');
+    } catch (err) {
+      console.error(err);
+      alert('Categorization failed. Check your network and try again.');
+    } finally {
+      setLoading(false);
+      document.getElementById('map-btn').disabled = false;
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  ANTHROPIC API — CATEGORIZE
+  // ══════════════════════════════════════════════════════════════
+  async function categorize(words) {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01'   // ← BUG 1 FIX: required header
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content:
+                  `You are a semantic clustering engine for a mind-map tool.
+Group the following words/phrases into 3–7 meaningful thematic categories.
+
+Words: ${words.join(', ')}
+
+Return ONLY a valid JSON array — zero markdown, zero explanation, no code fences.
+Format exactly:
+[{"category":"Short Name","emoji":"🔥","words":["word1","word2"]}]
+
+Rules:
+- Every input word must appear in exactly one category (use original casing).
+- Keep category names short (1–3 words, title case).
+- Choose a highly relevant emoji per category.
+- Try to balance group sizes.`
+        }]
+      })
+    });
+
+    // ← BUG 2 FIX: check HTTP status before touching body
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      const msg = errBody?.error?.message || `API error ${res.status}`;
+      throw new Error(msg);
+    }
+
+    const data = await res.json();
+    const text = (data.content || []).map(b => b.text || '').join('');
+
+    // ← BUG 3 FIX: extract the first valid JSON array from anywhere in the text
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('Model returned no JSON array. Raw: ' + text.slice(0, 200));
+
+    return JSON.parse(match[0]);
+  }
+  // ══════════════════════════════════════════════════════════════
+  //  BUILD SCENE
+  // ══════════════════════════════════════════════════════════════
+  function buildScene(cats) {
+    clouds      = [];
+    connections = [];
+    uid         = 0;
+
+    const W     = window.innerWidth;
+    const H     = window.innerHeight;
+    const TOP   = 52;   // topbar height
+    const PAD   = 50;
+    const CW    = 224;  // cloud width
+    const CH    = 170;  // approx cloud height
+
+    const cols  = Math.ceil(Math.sqrt(cats.length + 0.5));
+    const rows  = Math.ceil(cats.length / cols);
+    const cellW = (W - PAD * 2) / cols;
+    const cellH = (H - TOP - PAD * 2) / rows;
+
+    cats.forEach((cat, i) => {
+      const p   = PALETTE[i % PALETTE.length];
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+
+      // Random offset inside cell, keeping cloud on screen
+      const maxDX = Math.max(0, cellW - CW - 20);
+      const maxDY = Math.max(0, cellH - CH - 20);
+      const x     = PAD + col * cellW + 10 + Math.random() * maxDX;
+      const y     = TOP + PAD + row * cellH + 10 + Math.random() * maxDY;
+
+      // Organic blob border-radius
+      const rr = () => Math.floor(Math.random() * 22 + 42);
+      const borderRadius = `${rr()}% ${rr()}% ${rr()}% ${rr()}% / ${rr()}% ${rr()}% ${rr()}% ${rr()}%`;
+
+      clouds.push({
+        id: genId('c'),
+        category: cat.category || 'Group',
+        emoji: cat.emoji || '💡',
+        words: cat.words || [],
+        x: Math.max(PAD, Math.min(x, W - CW - PAD)),
+        y: Math.max(TOP + 10, Math.min(y, H - CH - 10)),
+        width: CW,
+        color:  p.color,
+        bg:     p.bg,
+        border: p.border,
+        borderRadius,
+        delay:  i * 0.07,
+        el: null,
+      });
+    });
+
+    renderScene();
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  RENDER
+  // ══════════════════════════════════════════════════════════════
+  function renderScene() {
+    renderClouds();
+    renderConnections();
+  }
+
+  function renderClouds() {
+    const container = document.getElementById('clouds-container');
+    // Remove old cloud elements only
+    container.querySelectorAll('.cloud-node').forEach(el => el.remove());
+
+    clouds.forEach(cloud => {
+      const el = makeCloudEl(cloud);
+      container.appendChild(el);
+      cloud.el = el;
+    });
+  }
+
+  function makeCloudEl(cloud) {
+    const el = document.createElement('div');
+    el.className = 'cloud-node';
+    el.id = cloud.id;
+    el.setAttribute('data-cloud-id', cloud.id);
+    el.style.cssText = `
+      left: ${cloud.x}px;
+      top:  ${cloud.y}px;
+      width: ${cloud.width}px;
+      background: ${cloud.bg};
+      border: 1.5px solid ${cloud.border};
+      border-radius: ${cloud.borderRadius};
+      box-shadow: 0 6px 36px ${cloud.bg.replace('0.1', '0.2')}, 0 1px 0 rgba(255,255,255,0.05) inset;
+      color: ${cloud.color};
+      animation-delay: ${cloud.delay}s;
+    `;
+
+    // Header divider colour
+    const hdivider = `border-bottom: 1px solid ${cloud.border};`;
+
+    el.innerHTML = `
+      <div class="cloud-x" onclick="deleteCloud('${cloud.id}')">✕</div>
+      <div class="cloud-header" style="${hdivider}">
+        <span class="cloud-emoji">${cloud.emoji}</span>
+        <span class="cloud-title" style="color:${cloud.color}">${escHtml(cloud.category)}</span>
+      </div>
+      <div class="cloud-words">
+        ${cloud.words.map(w => `<span class="word-pill">${escHtml(w)}</span>`).join('')}
+      </div>
+      <div class="connect-handle"
+           style="color:${cloud.color};"
+           data-handle-for="${cloud.id}"></div>
+    `;
+
+    // Drag cloud body
+    el.addEventListener('mousedown', onCloudBodyDown);
+    // Connect handle
+    el.querySelector('.connect-handle').addEventListener('mousedown', onHandleDown);
+
+    return el;
+  }
+
+  // ── Connections + mid-point delete buttons ──────────────────
+  function renderConnections() {
+    const svg       = document.getElementById('svg-layer');
+    const container = document.getElementById('clouds-container');
+
+    // Clear previous connection renders
+    svg.querySelectorAll('.conn-group').forEach(g => g.remove());
+    container.querySelectorAll('.conn-mid-btn').forEach(b => b.remove());
+    const tempLine = svg.querySelector('.temp-line');
+
+    connections.forEach(conn => {
+      const from = clouds.find(c => c.id === conn.fromId);
+      const to   = clouds.find(c => c.id === conn.toId);
+      if (!from || !to) return;
+
+      const pts = lineEndpoints(from, to);
+      const d   = bezierPath(pts.x1, pts.y1, pts.x2, pts.y2);
+
+      const gid  = `grad_${conn.id}`;
+      const g    = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.className.baseVal = 'conn-group';
+
+      // Gradient def
+      g.innerHTML = `
+        <defs>
+          <linearGradient id="${gid}" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stop-color="${from.color}" stop-opacity="0.85"/>
+            <stop offset="100%" stop-color="${to.color}"   stop-opacity="0.85"/>
+          </linearGradient>
+        </defs>
+        <path d="${d}" stroke="url(#${gid})" stroke-width="7"  fill="none" stroke-opacity="0.12"/>
+        <path d="${d}" stroke="url(#${gid})" stroke-width="1.8" fill="none" stroke-linecap="round" style="filter:drop-shadow(0 0 5px ${from.color}88)"/>
+      `;
+      svg.insertBefore(g, tempLine);
+
+      // Mid-point delete button (HTML element for easy pointer-events)
+      const mid = midpoint(pts.x1, pts.y1, pts.x2, pts.y2);
+      const btn = document.createElement('button');
+      btn.className = 'conn-mid-btn';
+      btn.title = 'Remove connection';
+      btn.textContent = '✕';
+      btn.style.left = mid.x + 'px';
+      btn.style.top  = mid.y + 'px';
+      btn.addEventListener('click', () => deleteConnection(conn.id));
+      container.appendChild(btn);
+    });
+  }
+
+  function updateTempLine() {
+    const svg = document.getElementById('svg-layer');
+    let tl = svg.querySelector('.temp-line');
+
+    if (!connecting) {
+      if (tl) tl.remove();
+      return;
+    }
+    if (!tl) {
+      tl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      tl.className.baseVal = 'temp-line';
+      tl.setAttribute('fill', 'none');
+      tl.setAttribute('stroke', 'rgba(255,255,255,0.35)');
+      tl.setAttribute('stroke-width', '2');
+      tl.setAttribute('stroke-dasharray', '6 4');
+      tl.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(tl);
+    }
+    const d = bezierPath(connecting.x1, connecting.y1, connecting.x2, connecting.y2);
+    tl.setAttribute('d', d);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  GEOMETRY HELPERS
+  // ══════════════════════════════════════════════════════════════
+  function cloudRect(cloud) {
+    if (cloud.el) {
+      return cloud.el.getBoundingClientRect();
+    }
+    return { left: cloud.x, top: cloud.y, right: cloud.x + cloud.width, bottom: cloud.y + 180, width: cloud.width, height: 180 };
+  }
+
+  function lineEndpoints(from, to) {
+    const fr = cloudRect(from);
+    const tr = cloudRect(to);
+    return {
+      x1: fr.left + fr.width  / 2,
+      y1: fr.top  + fr.height / 2,
+      x2: tr.left + tr.width  / 2,
+      y2: tr.top  + tr.height / 2,
+    };
+  }
+
+  function bezierPath(x1, y1, x2, y2) {
+    const dx = (x2 - x1) * 0.42;
+    const dy = (y2 - y1) * 0.15;
+    return `M ${x1} ${y1} C ${x1+dx} ${y1+dy}, ${x2-dx} ${y2-dy}, ${x2} ${y2}`;
+  }
+
+  function midpoint(x1, y1, x2, y2) {
+    return { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
+  }
+
+  function hitCloud(e, excludeId) {
+    return clouds.find(c => {
+      if (c.id === excludeId || !c.el) return false;
+      const r = c.el.getBoundingClientRect();
+      return e.clientX >= r.left && e.clientX <= r.right
+          && e.clientY >= r.top  && e.clientY <= r.bottom;
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  MOUSE — CLOUD DRAG
+  // ══════════════════════════════════════════════════════════════
+  function onCloudBodyDown(e) {
+    const el = e.currentTarget;
+    if (e.target.closest('.connect-handle') || e.target.closest('.cloud-x')) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const cloudId = el.getAttribute('data-cloud-id');
+    const cloud   = clouds.find(c => c.id === cloudId);
+
+    dragging = {
+      cloudId,
+      offsetX: e.clientX - cloud.x,
+      offsetY: e.clientY - cloud.y,
+    };
+    el.classList.add('is-dragging');
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  MOUSE — CONNECT HANDLE
+  // ══════════════════════════════════════════════════════════════
+  function onHandleDown(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const cloudId = e.currentTarget.getAttribute('data-handle-for');
+    const cloud   = clouds.find(c => c.id === cloudId);
+    const r       = cloud.el.getBoundingClientRect();
+
+    connecting = {
+      fromId: cloudId,
+      x1: r.left + r.width  / 2,
+      y1: r.top  + r.height / 2,
+      x2: e.clientX,
+      y2: e.clientY,
+    };
+
+    // Dim all other clouds
+    clouds.forEach(c => { if (c.id !== cloudId && c.el) c.el.classList.add('is-dim'); });
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  GLOBAL MOUSE MOVE
+  // ══════════════════════════════════════════════════════════════
+  let rafId = null;
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging && !connecting) return;
+
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+
+      if (dragging) {
+        const cloud = clouds.find(c => c.id === dragging.cloudId);
+        if (!cloud) return;
+        cloud.x = e.clientX - dragging.offsetX;
+        cloud.y = e.clientY - dragging.offsetY;
+        cloud.el.style.left = cloud.x + 'px';
+        cloud.el.style.top  = cloud.y + 'px';
+        renderConnections();
+      }
+
+      if (connecting) {
+        connecting.x2 = e.clientX;
+        connecting.y2 = e.clientY;
+        updateTempLine();
+
+        // Highlight hovered target
+        const target = hitCloud(e, connecting.fromId);
+        clouds.forEach(c => {
+          if (c.id === connecting.fromId || !c.el) return;
+          if (c === target) {
+            c.el.classList.remove('is-dim');
+            c.el.classList.add('is-target');
+          } else {
+            c.el.classList.add('is-dim');
+            c.el.classList.remove('is-target');
+          }
+        });
+      }
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  //  GLOBAL MOUSE UP
+  // ══════════════════════════════════════════════════════════════
+  document.addEventListener('mouseup', e => {
+    if (dragging) {
+      const cloud = clouds.find(c => c.id === dragging.cloudId);
+      if (cloud && cloud.el) cloud.el.classList.remove('is-dragging');
+      dragging = null;
+    }
+
+    if (connecting) {
+      const target = hitCloud(e, connecting.fromId);
+      if (target) addConnection(connecting.fromId, target.id);
+
+      connecting = null;
+      updateTempLine();
+      clouds.forEach(c => { if (c.el) c.el.classList.remove('is-dim', 'is-target'); });
+      renderConnections();
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  //  CONNECTION CRUD
+  // ══════════════════════════════════════════════════════════════
+  function addConnection(fromId, toId) {
+    const dup = connections.some(c =>
+      (c.fromId === fromId && c.toId === toId) ||
+      (c.fromId === toId   && c.toId === fromId)
+    );
+    if (dup) return;
+    connections.push({ id: genId('k'), fromId, toId });
+    renderConnections();
+  }
+
+  function deleteConnection(connId) {
+    connections = connections.filter(c => c.id !== connId);
+    renderConnections();
+  }
+
+  function deleteCloud(cloudId) {
+    clouds      = clouds.filter(c => c.id !== cloudId);
+    connections = connections.filter(c => c.fromId !== cloudId && c.toId !== cloudId);
+    renderScene();
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  SCREEN TRANSITIONS
+  // ══════════════════════════════════════════════════════════════
+  function switchScreen(name) {
+    document.getElementById('input-screen').classList.toggle('hidden', name !== 'input');
+    document.getElementById('canvas-screen').classList.toggle('hidden', name !== 'canvas');
+  }
+
+  function resetApp() {
+    switchScreen('input');
+    clouds      = [];
+    connections = [];
+    document.getElementById('clouds-container').innerHTML = '';
+    document.getElementById('svg-layer').innerHTML = '';
+  }
+
+  function setLoading(on) {
+    document.getElementById('loading').classList.toggle('show', on);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  UTIL
+  // ══════════════════════════════════════════════════════════════
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  // Allow Enter in textarea only for new lines (not submit)
+  document.getElementById('words-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.metaKey) handleMap();
+  });
+  </script>
+</body>
+</html>
