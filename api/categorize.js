@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     const response = await client.responses.create({
       model: "gpt-4.1-mini",
 
-      response_format: {
+      text:{format: {
         type: "json_schema",
         json_schema: {
           name: "mindmap_tree",
@@ -69,7 +69,7 @@ export default async function handler(req, res) {
             required: ["title", "children"]
           }
         }
-      },
+      }},
 
       input: `
 You are building a structured mind map.
