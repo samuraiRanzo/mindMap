@@ -573,20 +573,15 @@
 
 
   function transformTreeToClouds(tree) {
-    const clouds = [];
-
-    (tree.children || []).forEach(cat => {
-      clouds.push({
-        category: cat.name,
-        emoji: cat.emoji,
-        subcategories: (cat.children || []).map(sub => ({
-          name: sub.name,
-          words: (sub.children || []).map(w => w.name)
-        }))
-      });
-    });
-
-    return clouds;
+    return (tree.children || []).map(cat => ({
+      id: genId('c'),
+      category: cat.name,
+      emoji: cat.emoji,
+      subcategories: (cat.children || []).map(sub => ({
+        name: sub.name,
+        words: (sub.children || []).map(w => w.name)
+      }))
+    }));
   }
   // ══════════════════════════════════════════════════════════════
   //  BUILD SCENE
@@ -609,7 +604,7 @@
     const cellH = (H - TOP - PAD * 2) / rows;
 
     cats.forEach((cat, i) => {
-      const p   = PALETTE[i % PALETTE.length];
+      const p = PALETTE[i % PALETTE.length];
       const col = i % cols;
       const row = Math.floor(i / cols);
 
@@ -620,12 +615,11 @@
 
       const rr = () => Math.floor(Math.random() * 22 + 42);
       const borderRadius = `${rr()}% ${rr()}% ${rr()}% ${rr()}% / ${rr()}% ${rr()}% ${rr()}% ${rr()}%`;
-
       clouds.push({
-        id: genId('c'),
-        category: cat.category || 'Group',
-        emoji:    cat.emoji    || '💡',
-        words:    cat.words    || [],
+        id: cat.id,
+        category: cat.category,
+        emoji: cat.emoji,
+        subcategories: cat.subcategories, // keep subcategories here
         x: Math.max(PAD, Math.min(x, W - CW - PAD)),
         y: Math.max(TOP + 10, Math.min(y, H - CH - 10)),
         width: CW,
@@ -686,13 +680,13 @@
       </div>
       <div class="cloud-words">
   ${(cloud.subcategories || []).map(sub => `
-    <div class="subcat-block">
-      <div class="subcat-title">${escHtml(sub.name)}</div>
-      <div class="subcat-words">
-        ${sub.words.map(w => `<span class="word-pill">${escHtml(w)}</span>`).join('')}
-      </div>
+  <div class="subcat-block">
+    <div class="subcat-title">${escHtml(sub.name)}</div>
+    <div class="subcat-words">
+      ${sub.words.map(w => `<span class="word-pill">${escHtml(w)}</span>`).join('')}
     </div>
-  `).join('')}
+  </div>
+`).join('')}
 </div>
       <div class="connect-handle"
            style="color:${cloud.color};"
