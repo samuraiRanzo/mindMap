@@ -421,6 +421,23 @@
       background: rgba(255,60,60,0.2);
     }
     #clouds-container:hover .conn-mid-btn { opacity: 0.55; }
+    .subcat-block {
+      margin-bottom: 0.55rem;
+    }
+
+    .subcat-title {
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 0.25rem;
+    }
+
+    .subcat-words {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+    }
   </style>
 </head>
 <body>
@@ -549,9 +566,28 @@
     }
 
     const data = await res.json();
-    return data.categories;
+
+    // 🔥 NEW: transform hierarchical → flat clouds
+    return transformTreeToClouds(data);
   }
 
+
+  function transformTreeToClouds(tree) {
+    const clouds = [];
+
+    (tree.children || []).forEach(cat => {
+      clouds.push({
+        category: cat.name,
+        emoji: cat.emoji,
+        subcategories: (cat.children || []).map(sub => ({
+          name: sub.name,
+          words: (sub.children || []).map(w => w.name)
+        }))
+      });
+    });
+
+    return clouds;
+  }
   // ══════════════════════════════════════════════════════════════
   //  BUILD SCENE
   // ══════════════════════════════════════════════════════════════
@@ -649,8 +685,15 @@
         <span class="cloud-title" style="color:${cloud.color}">${escHtml(cloud.category)}</span>
       </div>
       <div class="cloud-words">
-        ${cloud.words.map(w => `<span class="word-pill">${escHtml(w)}</span>`).join('')}
+  ${(cloud.subcategories || []).map(sub => `
+    <div class="subcat-block">
+      <div class="subcat-title">${escHtml(sub.name)}</div>
+      <div class="subcat-words">
+        ${sub.words.map(w => `<span class="word-pill">${escHtml(w)}</span>`).join('')}
       </div>
+    </div>
+  `).join('')}
+</div>
       <div class="connect-handle"
            style="color:${cloud.color};"
            data-handle-for="${cloud.id}"></div>
@@ -675,7 +718,12 @@
       if (!from || !to) return;
 
       const pts = lineEndpoints(from, to);
-      const d   = bezierPath(pts.x1, pts.y1, pts.x2, pts.y2);
+      const d = bezierPath(
+              pts.x1, pts.y1,
+              pts.x2, pts.y2,
+              pts.fromSide,
+              pts.toSide
+      );
       const gid = `grad_${conn.id}`;
 
       const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -732,16 +780,88 @@
   function lineEndpoints(from, to) {
     const fr = cloudRect(from);
     const tr = cloudRect(to);
+
+    const c1 = {
+      x: fr.left + fr.width / 2,
+      y: fr.top + fr.height / 2
+    };
+
+    const c2 = {
+      x: tr.left + tr.width / 2,
+      y: tr.top + tr.height / 2
+    };
+
+    const dx = c2.x - c1.x;
+    const dy = c2.y - c1.y;
+
+    function getSnapPoint(rect, side) {
+      switch (side) {
+        case 'left':
+          return { x: rect.left, y: rect.top + rect.height / 2 };
+        case 'right':
+          return { x: rect.left + rect.width, y: rect.top + rect.height / 2 };
+        case 'top':
+          return { x: rect.left + rect.width / 2, y: rect.top };
+        case 'bottom':
+          return { x: rect.left + rect.width / 2, y: rect.top + rect.height };
+      }
+    }
+
+    let fromSide, toSide;
+
+    // 🔥 Decide orientation
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // Horizontal layout
+      if (dx > 0) {
+        fromSide = 'right';
+        toSide   = 'left';
+      } else {
+        fromSide = 'left';
+        toSide   = 'right';
+      }
+    } else {
+      // Vertical layout
+      if (dy > 0) {
+        fromSide = 'bottom';
+        toSide   = 'top';
+      } else {
+        fromSide = 'top';
+        toSide   = 'bottom';
+      }
+    }
+
+    const p1 = getSnapPoint(fr, fromSide);
+    const p2 = getSnapPoint(tr, toSide);
+
     return {
-      x1: fr.left + fr.width  / 2, y1: fr.top + fr.height / 2,
-      x2: tr.left + tr.width  / 2, y2: tr.top + tr.height / 2,
+      x1: p1.x,
+      y1: p1.y,
+      x2: p2.x,
+      y2: p2.y,
+      fromSide,
+      toSide
     };
   }
 
-  function bezierPath(x1, y1, x2, y2) {
-    const dx = (x2 - x1) * 0.42;
-    const dy = (y2 - y1) * 0.15;
-    return `M ${x1} ${y1} C ${x1+dx} ${y1+dy}, ${x2-dx} ${y2-dy}, ${x2} ${y2}`;
+  function bezierPath(x1, y1, x2, y2, fromSide, toSide) {
+    const offset = 60;
+
+    let cx1 = x1;
+    let cy1 = y1;
+    let cx2 = x2;
+    let cy2 = y2;
+
+    if (fromSide === 'right') cx1 += offset;
+    if (fromSide === 'left')  cx1 -= offset;
+    if (fromSide === 'top')   cy1 -= offset;
+    if (fromSide === 'bottom')cy1 += offset;
+
+    if (toSide === 'right') cx2 += offset;
+    if (toSide === 'left')  cx2 -= offset;
+    if (toSide === 'top')   cy2 -= offset;
+    if (toSide === 'bottom')cy2 += offset;
+
+    return `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
   }
 
   function midpoint(x1, y1, x2, y2) { return { x: (x1+x2)/2, y: (y1+y2)/2 }; }

@@ -1,5 +1,7 @@
+import OpenAI from "openai";
+
 export default async function handler(req, res) {
-  // ── CORS headers (in case you ever call this from a different domain) ──
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -13,62 +15,91 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Provide at least 3 words.' });
   }
 
-  // ── API key lives only here, read from Vercel environment variable ──
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'API key not configured on server.' });
+    return res.status(500).json({ error: 'API key not configured.' });
   }
 
+  const client = new OpenAI({ apiKey });
+
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+    const response = await client.responses.create({
+      model: "gpt-4.1-mini",
+
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "mindmap_tree",
+          schema: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              children: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    emoji: { type: "string" },
+                    children: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          name: { type: "string" },
+                          children: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                name: { type: "string" }
+                              },
+                              required: ["name"]
+                            }
+                          }
+                        },
+                        required: ["name", "children"]
+                      }
+                    }
+                  },
+                  required: ["name", "emoji", "children"]
+                }
+              }
+            },
+            required: ["title", "children"]
+          }
+        }
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content:
-`You are a semantic clustering engine for a mind-map tool.
-Group the following words/phrases into 3–7 meaningful thematic categories.
 
-Words: ${words.join(', ')}
+      input: `
+You are building a structured mind map.
 
-Return ONLY a valid JSON array — zero markdown, zero explanation, no code fences.
-Format exactly:
-[{"category":"Short Name","emoji":"🔥","words":["word1","word2"]}]
+Organize the following words into a 3-level hierarchy:
+
+Level 1: Main categories (broad themes)
+Level 2: Subcategories (more specific ideas)
+Level 3: Individual words
+
+Words:
+${words.join(', ')}
 
 Rules:
-• Every input word must appear in exactly one category (use original casing).
-• Keep category names short (1–3 words, title case).
-• Choose a highly relevant emoji per category.
-• Try to balance group sizes.`
-        }]
-      })
+- 3–6 main categories
+- Each category must have subcategories
+- Each subcategory must contain related words
+- Use clear semantic grouping (not random)
+- Keep names short and meaningful
+- Add emoji only at top-level categories
+- Every word must appear exactly once
+`
     });
 
-    if (!response.ok) {
-      const errBody = await response.json().catch(() => ({}));
-      return res.status(response.status).json({
-        error: errBody?.error?.message || `Anthropic error ${response.status}`
-      });
-    }
+    const data = response.output[0].content[0].parsed;
 
-    const data  = await response.json();
-    const text  = (data.content || []).map(b => b.text || '').join('');
-    const match = text.match(/\[[\s\S]*\]/);
-
-    if (!match) {
-      return res.status(500).json({ error: 'Model returned no valid JSON. Raw: ' + text.slice(0, 200) });
-    }
-
-    return res.status(200).json({ categories: JSON.parse(match[0]) });
+    return res.status(200).json(data);
 
   } catch (err) {
+    console.error(err);
     return res.status(500).json({ error: err.message });
   }
 }
