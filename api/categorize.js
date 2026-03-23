@@ -25,52 +25,6 @@ export default async function handler(req, res) {
   try {
     const response = await client.responses.create({
       model: "gpt-4.1-mini",
-
-      text:{format: {
-        type: "json_schema",
-        json_schema: {
-          name: "mindmap_tree",
-          schema: {
-            type: "object",
-            properties: {
-              title: { type: "string" },
-              children: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string" },
-                    emoji: { type: "string" },
-                    children: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          name: { type: "string" },
-                          children: {
-                            type: "array",
-                            items: {
-                              type: "object",
-                              properties: {
-                                name: { type: "string" }
-                              },
-                              required: ["name"]
-                            }
-                          }
-                        },
-                        required: ["name", "children"]
-                      }
-                    }
-                  },
-                  required: ["name", "emoji", "children"]
-                }
-              }
-            },
-            required: ["title", "children"]
-          }
-        }
-      }},
-
       input: `
 You are building a structured mind map.
 
@@ -91,9 +45,54 @@ Rules:
 - Keep names short and meaningful
 - Add emoji only at top-level categories
 - Every word must appear exactly once
-`
+`,
+      text: {
+        format: {
+          type: "json_schema",
+          json_schema: {
+            name: "mindmap_tree",
+            schema: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                children: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      emoji: { type: "string" },
+                      children: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            name: { type: "string" },
+                            children: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  name: { type: "string" }
+                                },
+                                required: ["name"]
+                              }
+                            }
+                          },
+                          required: ["name", "children"]
+                        }
+                      }
+                    },
+                    required: ["name", "emoji", "children"]
+                  }
+                }
+              },
+              required: ["title", "children"]
+            }
+          }
+        }
+      }
     });
-
     const data = response.output[0].content[0].parsed;
 
     return res.status(200).json(data);
