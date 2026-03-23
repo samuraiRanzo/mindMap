@@ -51,46 +51,44 @@ Rules:
       text: {
         format: {
           type: "json_schema",
-          name: "mindmap_tree",   // <-- required at this level
-          json_schema: {
-            schema: {
-              type: "object",
-              properties: {
-                title: { type: "string" },
-                children: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      name: { type: "string" },
-                      emoji: { type: "string" },
-                      children: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            name: { type: "string" },
-                            children: {
-                              type: "array",
-                              items: {
-                                type: "object",
-                                properties: {
-                                  name: { type: "string" }
-                                },
-                                required: ["name"]
-                              }
+          name: "mindmap_tree",
+          schema: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              children: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    emoji: { type: "string" },
+                    children: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          name: { type: "string" },
+                          children: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                name: { type: "string" }
+                              },
+                              required: ["name"]
                             }
-                          },
-                          required: ["name", "children"]
-                        }
+                          }
+                        },
+                        required: ["name", "children"]
                       }
-                    },
-                    required: ["name", "emoji", "children"]
-                  }
+                    }
+                  },
+                  required: ["name", "emoji", "children"]
                 }
-              },
-              required: ["title", "children"]
-            }
+              }
+            },
+            required: ["title", "children"]
           }
         }
       }
