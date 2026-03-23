@@ -56,54 +56,52 @@ IMPORTANT: Return only valid JSON strictly matching the schema. Do NOT include a
         format: {
           type: "json_schema",
           name: "mindmap_tree",
-          json_schema: {
-            schema: {
-              type: "object",
-              additionalProperties: false,
-              properties: {
-                title: { type: "string" },
-                children: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    additionalProperties: false,
-                    properties: {
-                      name: { type: "string" },
-                      emoji: { type: "string" },
-                      children: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          additionalProperties: false,
-                          properties: {
-                            name: { type: "string" },
-                            children: {
-                              type: "array",
-                              items: {
-                                type: "object",
-                                additionalProperties: false,
-                                properties: {
-                                  name: { type: "string" }
-                                },
-                                required: ["name"]
-                              }
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              title: { type: "string" },
+              children: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    name: { type: "string" },
+                    emoji: { type: "string" },
+                    children: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        additionalProperties: false,
+                        properties: {
+                          name: { type: "string" },
+                          children: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              additionalProperties: false,
+                              properties: {
+                                name: { type: "string" }
+                              },
+                              required: ["name"]
                             }
-                          },
-                          required: ["name", "children"]
-                        }
+                          }
+                        },
+                        required: ["name", "children"]
                       }
-                    },
-                    required: ["name", "emoji", "children"]
-                  }
+                    }
+                  },
+                  required: ["name", "emoji", "children"]
                 }
-              },
-              required: ["title", "children"]
-            }
+              }
+            },
+            required: ["title", "children"]
           }
         }
       }
     });
-
+    console.log(response)
     // Safely access parsed output
     const data = response.output?.[0]?.content?.[0]?.parsed;
 
