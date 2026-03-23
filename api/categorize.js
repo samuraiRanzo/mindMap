@@ -54,12 +54,14 @@ Rules:
           name: "mindmap_tree",
           schema: {
             type: "object",
+            additionalProperties: false, // <-- required at top-level
             properties: {
               title: { type: "string" },
               children: {
                 type: "array",
                 items: {
                   type: "object",
+                  additionalProperties: false, // <-- required here
                   properties: {
                     name: { type: "string" },
                     emoji: { type: "string" },
@@ -67,12 +69,14 @@ Rules:
                       type: "array",
                       items: {
                         type: "object",
+                        additionalProperties: false, // <-- required here
                         properties: {
                           name: { type: "string" },
                           children: {
                             type: "array",
                             items: {
                               type: "object",
+                              additionalProperties: false, // <-- required here
                               properties: {
                                 name: { type: "string" }
                               },
