@@ -25,6 +25,7 @@ export default async function handler(req, res) {
   try {
     const response = await client.responses.create({
       model: "gpt-4.1-mini",
+
       input: `
 You are building a structured mind map.
 
@@ -46,11 +47,12 @@ Rules:
 - Add emoji only at top-level categories
 - Every word must appear exactly once
 `,
+
       text: {
         format: {
           type: "json_schema",
+          name: "mindmap_tree",   // <-- required at this level
           json_schema: {
-            name: "mindmap_tree",
             schema: {
               type: "object",
               properties: {
