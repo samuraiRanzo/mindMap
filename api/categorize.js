@@ -1,17 +1,6 @@
-import OpenAI from "openai";
-
-// Initialize once, at module level
-const openai = new OpenAI({
-  baseURL: process.env.AI_BASE_URL?.trim() || 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'http://localhost:3000',
-    'X-OpenRouter-Title': process.env.OPENROUTER_SITE_NAME || 'MindCloud Local',
-  },
-});
-
+// api/categorize.js
 export default async function handler(req, res) {
-  // CORS
+  // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -24,140 +13,164 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Provide at least 3 words." });
   }
 
-  // ✅ Validate OpenRouter key (not OpenAI)
-  if (!process.env.OPENROUTER_API_KEY) {
+  // Validate env vars
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  const baseUrl = (process.env.AI_BASE_URL || 'https://openrouter.ai/api/v1').trim();
+  
+  if (!apiKey) {
     return res.status(500).json({ error: "OPENROUTER_API_KEY not configured." });
   }
 
+  // Build the prompt
   const prompt = `
-You are building a structured mind map.
-
-Organize the following words into a 3-level hierarchy:
-Level 1: Main categories (broad themes)
-Level 2: Subcategories (more specific ideas)  
-Level 3: Individual words
+You are a mind-mapping assistant. Organize these words into a 3-level hierarchy.
 
 Words: ${words.join(", ")}
 
-Rules:
-- 3–6 main categories with emoji icons
-- Each category must have subcategories
-- Each subcategory must contain related words
-- Use clear semantic grouping (not random)
-- Keep names short and meaningful
-- Every input word must appear exactly once in leaf nodes
-- Return ONLY valid JSON matching the schema below
+Requirements:
+- Return ONLY valid JSON (no markdown, no explanations)
+- Schema: { title: string, children: [{ name: string, emoji: string, children: [{ name: string, children: [{ name: string }] }] }] }
+- 3-6 top-level categories with emojis
+- Every input word appears exactly once in leaf nodes
+- Use semantic grouping, not random
 
-Schema:
-{
-  "title": "string",
-  "children": [
-    {
-      "name": "string",
-      "emoji": "string",
-      "children": [
-        {
-          "name": "string",
-          "children": [{ "name": "string" }]
+Output:`;
+
+  // Retry helper for rate limits
+  async function fetchWithRetry(url, options, retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch(url, options);
+        if (response.status === 429 && attempt < retries) {
+          const delay = 2000 * Math.pow(2, attempt - 1); // 2s, 4s, 8s
+          console.log(`⏳ Rate limited, retrying in ${delay/1000}s...`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
         }
-      ]
+        return response;
+      } catch (err) {
+        if (attempt === retries) throw err;
+        await new Promise(r => setTimeout(r, 1000 * attempt));
+      }
     }
-  ]
-}
-
-IMPORTANT: Output raw JSON only. No markdown, no explanations.`;
+  }
 
   try {
-    const response = await openai.chat.completions.create({
-      model: process.env.AI_MODEL || 'qwen/qwen3.5-flash',
-      messages: [{ role: 'user', content: prompt }],
-      response_format: {
-        type: 'json_schema',
-        json_schema: {
-          name: 'mind_map',
-          strict: true,
-          schema: {
-            type: 'object',
-            properties: {
-              title: { type: 'string' },
-              children: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    name: { type: 'string' },
-                    emoji: { type: 'string' },
-                    children: {
-                      type: 'array',
-                      items: {
-                        type: 'object',
-                        properties: {
-                          name: { type: 'string' },
-                          children: {
-                            type: 'array',
-                            items: {
-                              type: 'object',
-                              properties: { name: { type: 'string' } },
-                              required: ['name'],
-                              additionalProperties: false
+    const response = await fetchWithRetry(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "http://localhost:3000",
+        "X-OpenRouter-Title": process.env.OPENROUTER_SITE_NAME || "MindCloud",
+      },
+      body: JSON.stringify({
+        model: process.env.AI_MODEL || "qwen/qwen3.5-9b", // Avoid :free for reliability
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.1,
+        max_tokens: 4096,
+        // ✅ Structured JSON output
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "mind_map",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                children: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      emoji: { type: "string" },
+                      children: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            name: { type: "string" },
+                            children: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: { name: { type: "string" } },
+                                required: ["name"],
+                                additionalProperties: false
+                              }
                             }
-                          }
-                        },
-                        required: ['name', 'children'],
-                        additionalProperties: false
+                          },
+                          required: ["name", "children"],
+                          additionalProperties: false
+                        }
                       }
-                    }
-                  },
-                  required: ['name', 'children'],
-                  additionalProperties: false
+                    },
+                    required: ["name", "children"],
+                    additionalProperties: false
+                  }
                 }
-              }
-            },
-            required: ['title', 'children'],
-            additionalProperties: false
+              },
+              required: ["title", "children"],
+              additionalProperties: false
+            }
           }
         }
-      },
-      temperature: 0.1,
-      max_tokens: 4096,
+      })
     });
 
-    // ✅ Correct response parsing for OpenAI SDK + OpenRouter
-    const content = response.choices?.[0]?.message?.content;
+    // Handle HTTP errors
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("OpenRouter error:", {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorData
+      });
+      
+      if (response.status === 429) {
+        return res.status(429).json({ 
+          error: "Rate limit exceeded. Please wait 30 seconds and try again." 
+        });
+      }
+      if (response.status === 401) {
+        return res.status(401).json({ error: "Invalid OpenRouter API key." });
+      }
+      return res.status(response.status).json({ 
+        error: errorData.error?.message || "OpenRouter request failed" 
+      });
+    }
+
+    const data = await response.json();
+    
+    // Parse the AI response
+    const content = data.choices?.[0]?.message?.content;
     if (!content) {
       throw new Error("Empty response from AI");
     }
 
-    let data;
+    let parsed;
     try {
-      // Content may be string (needs parse) or already parsed object
-      data = typeof content === 'string' ? JSON.parse(content) : content;
+      // Handle both string and pre-parsed content
+      parsed = typeof content === "string" ? JSON.parse(content) : content;
     } catch (parseErr) {
-      console.error("JSON parse failed. Raw content:", content);
-      return res.status(500).json({ 
-        error: "Failed to parse AI response as JSON",
-        debug: content?.slice(0, 200) // safe preview
-      });
+      console.error("JSON parse error. Raw content:", content?.slice(0, 300));
+      // Fallback: strip markdown code blocks if present
+      const clean = content.replace(/```(?:json)?\n?|\n?```/g, "").trim();
+      parsed = JSON.parse(clean);
     }
 
-    return res.status(200).json(data);
+    return res.status(200).json(parsed);
 
   } catch (err) {
-    console.error("OpenRouter request error:", {
+    console.error("Request failed:", {
       message: err.message,
-      status: err.status,
-      type: err.type,
-      // Safely log response if available
-      response: err.response?.data || err.response?.statusText
+      name: err.name,
+      stack: err.stack
     });
-    
-    // User-friendly error
-    const userError = err.status === 401 
-      ? "Invalid API key" 
-      : err.status === 429 
-        ? "Rate limit exceeded" 
-        : err.message || "AI request failed";
-        
-    return res.status(err.status || 500).json({ error: userError });
+    return res.status(500).json({ 
+      error: err.message || "Failed to generate mind map" 
+    });
   }
 }
