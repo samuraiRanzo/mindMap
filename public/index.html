@@ -2,994 +2,878 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MindCloud — AI Mind Mapper</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>MindCloud — AI-Powered Mind Mapping</title>
   <style>
+    /* ===== BASE RESET & TYPOGRAPHY ===== */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg: #07071a;
-      --text: #dde0f5;
-      --muted: #52527a;
-      --border: rgba(255,255,255,0.07);
-      --surface: rgba(255,255,255,0.04);
-    }
-
     html, body {
-      width: 100%; height: 100%;
-      font-family: 'Syne', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      overflow: hidden;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #1a1a2e;
+      overflow: hidden; /* Prevent scroll during transitions */
     }
 
+    /* ===== SCREEN CONTAINERS — TRUE OVERLAY PATTERN ===== */
     .screen {
       position: fixed;
       inset: 0;
-      transition: opacity 0.45s ease, transform 0.45s ease;
-    }
-    .screen.hidden {
-      display:none;
-    }
-
-    /* ── INPUT SCREEN ── */
-    #input-screen {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 2rem;
-      gap: 1.6rem;
-      position: relative;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      opacity: 1;
+      visibility: visible;
+      z-index: 10;
     }
-
-    #input-screen::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 55% 45% at 50% -10%, rgba(108,92,231,0.18) 0%, transparent 65%),
-        radial-gradient(ellipse 35% 40% at 85% 85%, rgba(0,206,201,0.12) 0%, transparent 55%),
-        radial-gradient(ellipse 30% 35% at 10% 75%, rgba(253,121,168,0.09) 0%, transparent 55%);
+    .screen.hidden {
+      opacity: 0;
+      visibility: hidden;
       pointer-events: none;
-      z-index: 0;
+      /* Critical: remove from layout flow after transition */
+      display: none !important;
     }
 
-    #input-screen > * { position: relative; z-index: 1; }
-
-    .logo-wrap { text-align: center; }
-
-    .logo {
-      font-size: clamp(2.8rem, 6vw, 4.2rem);
-      font-weight: 800;
-      letter-spacing: -0.04em;
-      background: linear-gradient(130deg, #e0deff 0%, #7c6cfc 45%, #4fd1c5 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      line-height: 1;
-      display: block;
-    }
-
-    .tagline {
-      margin-top: 0.4rem;
-      color: var(--muted);
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-    }
-
-    .input-card {
-      width: 100%;
-      max-width: 540px;
-      background: rgba(255,255,255,0.032);
-      border: 1px solid rgba(255,255,255,0.09);
-      border-radius: 20px;
-      padding: 1.5rem;
-      backdrop-filter: blur(24px);
-      box-shadow: 0 24px 80px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
-    }
-
-    .field-label {
-      display: block;
-      font-size: 0.68rem;
-      font-weight: 700;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 0.65rem;
-    }
-
-    #words-input {
-      width: 100%;
-      min-height: 148px;
-      background: rgba(255,255,255,0.028);
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 12px;
-      padding: 0.9rem 1rem;
-      color: var(--text);
-      font-family: 'Space Mono', monospace;
-      font-size: 0.82rem;
-      line-height: 1.8;
-      resize: vertical;
-      outline: none;
-      transition: border-color 0.25s, box-shadow 0.25s;
-    }
-    #words-input:focus {
-      border-color: rgba(124,108,252,0.45);
-      box-shadow: 0 0 0 3px rgba(124,108,252,0.1);
-    }
-    #words-input::placeholder { color: #3a3a60; }
-
-    #error-msg {
-      display: none;
-      margin-top: 0.5rem;
-      color: #ff8fa3;
-      font-size: 0.75rem;
-      letter-spacing: 0.02em;
-    }
-    #error-msg.show { display: block; }
-
-    #map-btn {
-      margin-top: 0.9rem;
-      width: 100%;
-      padding: 0.9rem;
-      background: linear-gradient(130deg, #7c6cfc 0%, #4fd1c5 100%);
-      border: none;
-      border-radius: 12px;
-      color: #fff;
-      font-family: 'Syne', sans-serif;
-      font-size: 0.95rem;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      cursor: pointer;
-      transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
-    }
-    #map-btn:hover:not(:disabled) {
-      opacity: 0.88;
-      transform: translateY(-2px);
-      box-shadow: 0 10px 36px rgba(124,108,252,0.4);
-    }
-    #map-btn:active:not(:disabled) { transform: translateY(0); }
-    #map-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    .input-hint {
-      color: var(--muted);
-      font-size: 0.72rem;
-      line-height: 1.9;
-      text-align: center;
-      max-width: 420px;
-      letter-spacing: 0.01em;
-    }
-
-    /* ── LOADING ── */
-    #loading {
-      position: fixed;
-      inset: 0;
-      background: rgba(7,7,26,0.88);
-      backdrop-filter: blur(16px);
-      z-index: 200;
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 1.2rem;
-    }
-    #loading.show { display: flex; }
-
-    .orbit {
-      width: 52px; height: 52px;
-      border-radius: 50%;
-      border: 2px solid transparent;
-      border-top-color: #7c6cfc;
-      border-right-color: rgba(124,108,252,0.3);
-      animation: spin 0.75s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .loading-label {
-      color: var(--muted);
-      font-size: 0.8rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }
-
-    /* ── CANVAS SCREEN ── */
-    #canvas-screen {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      user-select: none;
-    }
-
-    #canvas-screen::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px);
-      background-size: 28px 28px;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    #canvas-screen::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 45% 38% at 15% 15%, rgba(108,92,231,0.07) 0%, transparent 60%),
-        radial-gradient(ellipse 38% 45% at 88% 85%, rgba(79,209,197,0.06) 0%, transparent 60%);
-      pointer-events: none;
-      z-index: 0;
-    }
-
+    /* ===== TOPBAR — FIXED HEADER ===== */
     #topbar {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 52px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 1.4rem;
-      background: rgba(7,7,26,0.65);
-      backdrop-filter: blur(24px);
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      padding: 0 2rem;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0,0,0,0.08);
       z-index: 100;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
     }
-
-    .topbar-logo {
-      font-size: 1.05rem;
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      background: linear-gradient(130deg, #e0deff, #7c6cfc);
+    #topbar h1 {
+      font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea, #764ba2);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      background-clip: text;
     }
-
-    .topbar-hint {
-      font-size: 0.66rem;
-      color: var(--muted);
-      letter-spacing: 0.07em;
-      text-align: center;
+    #topbar .instructions {
+      font-size: 0.9rem;
+      color: #555;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
     }
-    .topbar-hint span { display: inline-block; margin: 0 0.6rem; }
-    .topbar-hint .sep { color: #2a2a48; }
-
+    #topbar .instructions span {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
     #reset-btn {
-      padding: 0.38rem 1rem;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 8px;
-      color: var(--muted);
-      font-family: 'Syne', sans-serif;
-      font-size: 0.74rem;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 0.6rem 1.25rem;
+      border-radius: 10px;
       font-weight: 600;
-      letter-spacing: 0.05em;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
     }
     #reset-btn:hover {
-      background: rgba(255,255,255,0.09);
-      color: var(--text);
-      border-color: rgba(255,255,255,0.14);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(102, 126, 234, 0.45);
     }
 
-    #svg-layer {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 10;
-      overflow: visible;
-    }
-
-    #clouds-container {
-      position: absolute;
-      inset: 0;
+    /* ===== INPUT SCREEN ===== */
+    #input-screen {
+      background: rgba(255,255,255,0.96);
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      padding: 2.5rem;
+      max-width: 680px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+      text-align: center;
       z-index: 20;
     }
-
-    /* ── CLOUD NODE ── */
-    .cloud-node {
-      position: absolute;
-      min-width: 180px;
-      max-width: 248px;
-      padding: 1.1rem 1.3rem 1.4rem;
-      cursor: grab;
-      transition: box-shadow 0.3s, filter 0.25s;
-      animation: cloudPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    #input-screen h2 {
+      font-size: clamp(1.5rem, 4vw, 2rem);
+      margin-bottom: 0.75rem;
+      color: #1a1a2e;
     }
-
-    @keyframes cloudPop {
-      from { opacity: 0; transform: scale(0.25) translateY(30px); }
-      to   { opacity: 1; transform: scale(1)    translateY(0);     }
+    #input-screen p.subtitle {
+      color: #666;
+      margin-bottom: 1.75rem;
+      font-size: 1.05rem;
     }
-
-    .cloud-node.is-dragging {
-      cursor: grabbing !important;
-      animation: none !important;
-      z-index: 80 !important;
-      transition: box-shadow 0.15s;
+    #word-input {
+      width: 100%;
+      min-height: 140px;
+      padding: 1rem 1.25rem;
+      border: 2px solid #e0e0f0;
+      border-radius: 16px;
+      font-size: 1.05rem;
+      resize: vertical;
+      margin-bottom: 1rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background: #fafaff;
     }
-
-    .cloud-node.is-dim    { filter: brightness(0.38) saturate(0.3); }
-    .cloud-node.is-target { z-index: 70; filter: brightness(1.15); }
-
-    .cloud-x {
-      position: absolute;
-      top: 7px; right: 7px;
-      width: 20px; height: 20px;
-      border-radius: 50%;
-      background: rgba(255,80,80,0.12);
-      border: 1px solid rgba(255,80,80,0.28);
-      color: rgba(255,130,130,0.8);
-      font-size: 9px;
-      display: flex; align-items: center; justify-content: center;
+    #word-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+    }
+    #word-input::placeholder { color: #aaa; }
+    .error-msg {
+      color: #e53e3e;
+      font-size: 0.9rem;
+      margin: 0.5rem 0 1rem;
+      min-height: 1.25rem;
+      font-weight: 500;
+    }
+    #submit-btn {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 0.9rem 2rem;
+      border-radius: 14px;
+      font-size: 1.05rem;
+      font-weight: 600;
       cursor: pointer;
-      opacity: 0;
-      transition: opacity 0.2s, background 0.2s;
-      z-index: 5;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
     }
-    .cloud-node:hover .cloud-x { opacity: 1; }
-    .cloud-x:hover { background: rgba(255,80,80,0.28); color: #fff; }
+    #submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+    #submit-btn:active { transform: translateY(0); }
+    .hint {
+      margin-top: 1.5rem;
+      color: #777;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+    .hint strong { color: #555; }
 
+    /* ===== LOADING SCREEN ===== */
+    #loading {
+      background: rgba(255,255,255,0.94);
+      border-radius: 24px;
+      padding: 3rem 4rem;
+      text-align: center;
+      z-index: 30;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .spinner {
+      width: 56px;
+      height: 56px;
+      border: 4px solid rgba(102, 126, 234, 0.2);
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p {
+      font-size: 1.15rem;
+      color: #444;
+      font-weight: 500;
+    }
+
+    /* ===== CANVAS SCREEN — FULL VIEWPORT ===== */
+    #canvas-screen {
+      justify-content: flex-start; /* Align content to top below topbar */
+      padding-top: 64px; /* Match topbar height */
+      padding-bottom: 1rem;
+      background: transparent;
+      z-index: 15;
+    }
+    #canvas-container {
+      position: relative;
+      width: 100%;
+      height: calc(100dvh - 64px); /* Full viewport minus topbar */
+      overflow: hidden;
+      background: 
+        radial-gradient(circle at 20% 30%, rgba(118, 75, 162, 0.06) 0%, transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(102, 126, 234, 0.06) 0%, transparent 40%),
+        linear-gradient(135deg, #f8f9ff, #f0f2ff);
+    }
+    /* Grid background pattern */
+    #canvas-container::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(102,126,234,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(102,126,234,0.04) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+    }
+
+    /* ===== CLOUD STYLING ===== */
+    .cloud {
+      position: absolute;
+      background: white;
+      border-radius: 20px;
+      padding: 1.1rem 1.3rem;
+      box-shadow: 
+        0 8px 30px rgba(0,0,0,0.12),
+        0 2px 8px rgba(0,0,0,0.06);
+      cursor: grab;
+      user-select: none;
+      min-width: 180px;
+      max-width: 280px;
+      transition: box-shadow 0.2s ease, transform 0.1s ease;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .cloud:active { cursor: grabbing; }
+    .cloud:hover {
+      box-shadow: 
+        0 12px 40px rgba(0,0,0,0.18),
+        0 4px 12px rgba(0,0,0,0.1);
+      z-index: 8;
+    }
     .cloud-header {
       display: flex;
       align-items: center;
-      gap: 0.45rem;
-      padding-bottom: 0.6rem;
-      margin-bottom: 0.65rem;
-    }
-
-    .cloud-emoji { font-size: 1.1rem; line-height: 1; }
-
-    .cloud-title {
-      font-size: 0.72rem;
+      gap: 0.5rem;
       font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+      font-size: 1.05rem;
+      color: #2d3748;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
     }
-
+    .cloud-emoji { font-size: 1.2rem; }
     .cloud-words {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.35rem;
+      gap: 0.4rem;
     }
-
-    .word-pill {
-      padding: 0.2rem 0.55rem;
-      border-radius: 30px;
-      font-family: 'Space Mono', monospace;
-      font-size: 0.68rem;
-      background: rgba(255,255,255,0.065);
-      border: 1px solid rgba(255,255,255,0.09);
-      color: var(--text);
-      line-height: 1.5;
-      white-space: nowrap;
+    .cloud-word {
+      background: linear-gradient(135deg, rgba(102,126,234,0.12), rgba(118,75,162,0.12));
+      padding: 0.3rem 0.65rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: #4a5568;
+      font-weight: 500;
     }
-
-    .connect-handle {
+    .cloud-handle {
       position: absolute;
-      bottom: 9px; right: 9px;
-      width: 17px; height: 17px;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 22px;
+      height: 22px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border: 3px solid white;
       border-radius: 50%;
-      border: 2px solid currentColor;
-      background: rgba(7,7,26,0.85);
       cursor: crosshair;
-      display: flex; align-items: center; justify-content: center;
-      opacity: 0;
-      transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
-      z-index: 6;
-    }
-    .connect-handle::after {
-      content: '';
-      width: 5px; height: 5px;
-      border-radius: 50%;
-      background: currentColor;
-    }
-    .cloud-node:hover .connect-handle { opacity: 1; }
-    .connect-handle:hover {
-      transform: scale(1.4);
-      box-shadow: 0 0 10px currentColor;
-    }
-
-    .conn-mid-btn {
-      position: absolute;
-      width: 18px; height: 18px;
-      border-radius: 50%;
-      background: rgba(7,7,26,0.92);
-      border: 1.5px solid rgba(255,255,255,0.2);
-      color: rgba(255,130,130,0.8);
-      font-size: 9px;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      z-index: 40;
-      transition: opacity 0.2s, transform 0.2s, border-color 0.2s;
-      opacity: 0;
-      transform: translate(-50%, -50%) scale(0.7);
-    }
-    .conn-mid-btn:hover {
-      opacity: 1 !important;
-      transform: translate(-50%, -50%) scale(1.15);
-      border-color: rgba(255,100,100,0.6);
-      background: rgba(255,60,60,0.2);
-    }
-    #clouds-container:hover .conn-mid-btn { opacity: 0.55; }
-    .subcat-block {
-      margin-bottom: 0.55rem;
-    }
-
-    .subcat-title {
-      font-size: 0.62rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.45);
-      margin-bottom: 0.25rem;
-    }
-
-    .subcat-words {
+      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
       display: flex;
-      flex-wrap: wrap;
-      gap: 0.3rem;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: white;
+      z-index: 10;
+      transition: transform 0.15s ease;
+    }
+    .cloud-handle:hover { transform: translateX(-50%) scale(1.15); }
+    .cloud-delete {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(229, 62, 62, 0.92);
+      color: white;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s ease, transform 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 12;
+    }
+    .cloud:hover .cloud-delete { opacity: 1; }
+    .cloud-delete:hover { transform: scale(1.1); background: #c53030; }
+
+    /* ===== CONNECTION LINES ===== */
+    #connections-svg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+    }
+    .connection-line {
+      stroke: rgba(102, 126, 234, 0.65);
+      stroke-width: 2.5;
+      fill: none;
+      stroke-linecap: round;
+      pointer-events: stroke;
+      cursor: pointer;
+    }
+    .connection-line:hover {
+      stroke: #e53e3e;
+      stroke-width: 3.5;
+    }
+    .connection-delete {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      background: #e53e3e;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s ease, transform 0.15s ease;
+      pointer-events: auto;
+      z-index: 20;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+    }
+    .connection-line:hover + .connection-delete,
+    .connection-delete:hover {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
+    /* ===== RESPONSIVE ADJUSTMENTS ===== */
+    @media (max-width: 640px) {
+      .screen { padding: 1.25rem; }
+      #input-screen { padding: 1.75rem; }
+      #topbar { padding: 0 1rem; height: 56px; }
+      #topbar .instructions { display: none; } /* Hide instructions on small screens */
+      #canvas-screen { padding-top: 56px; }
+      #canvas-container { height: calc(100dvh - 56px); }
+    }
+
+    /* ===== UTILITIES ===== */
+    .sr-only {
+      position: absolute;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0);
+      white-space: nowrap; border: 0;
     }
   </style>
 </head>
 <body>
 
-  <!-- INPUT SCREEN -->
-  <div id="input-screen" class="screen">
-    <div class="logo-wrap">
-      <span class="logo">MindCloud</span>
-      <div class="tagline">AI-Powered Mind Mapping</div>
+  <!-- ===== TOPBAR (Visible on Canvas Screen) ===== -->
+  <header id="topbar" style="display: none;">
+    <h1>MindCloud</h1>
+    <div class="instructions">
+      <span>🖱️ Drag cloud to move</span>
+      <span>● Drag handle to connect</span>
+      <span>✕ Hover line → click to remove</span>
     </div>
+    <button id="reset-btn" aria-label="Create new mind map">← New Map</button>
+  </header>
 
-    <div class="input-card">
-      <label class="field-label" for="words-input">Your words &amp; ideas</label>
-      <textarea
-        id="words-input"
-        placeholder="e.g. Machine Learning, Meditation, Python, Coffee, Sleep, Data Science, Running, TensorFlow, Yoga, JavaScript..."
-        spellcheck="false"
-      ></textarea>
-      <div id="error-msg">Please enter at least 3 words or phrases to map.</div>
-      <button id="map-btn" onclick="handleMap()">Map My Mind →</button>
-    </div>
-
-    <p class="input-hint">
-      Enter words or phrases separated by commas or new lines.<br/>
-      AI will group them into thought clusters and visualize them<br/>
-      as draggable clouds you can freely connect.
+  <!-- ===== SCREEN 1: INPUT FORM ===== -->
+  <main id="input-screen" class="screen" aria-labelledby="input-title">
+    <h2 id="input-title">MindCloud</h2>
+    <p class="subtitle">AI-Powered Mind Mapping</p>
+    
+    <label for="word-input" class="sr-only">Your words & ideas</label>
+    <textarea 
+      id="word-input" 
+      placeholder="Your words & ideas&#10;&#10;Example:&#10;creativity, innovation, design, strategy, research, prototyping, user experience"
+      aria-describedby="input-hint error-msg"
+    ></textarea>
+    
+    <div id="error-msg" class="error-msg" role="alert" aria-live="polite"></div>
+    
+    <button id="submit-btn" type="button">
+      Map My Mind <span aria-hidden="true">→</span>
+    </button>
+    
+    <p id="input-hint" class="hint">
+      <strong>Tip:</strong> Enter words or phrases separated by commas or new lines.<br>
+      AI will group them into thought clusters and visualize them as draggable clouds you can freely connect.
     </p>
+  </main>
+
+  <!-- ===== SCREEN 2: LOADING ===== -->
+  <div id="loading" class="screen hidden" aria-live="polite" aria-busy="true">
+    <div class="spinner" role="status"></div>
+    <p>AI is mapping your mind…</p>
   </div>
 
-  <!-- LOADING -->
-  <div id="loading">
-    <div class="orbit"></div>
-    <div class="loading-label">AI is mapping your mind…</div>
-  </div>
-
-  <!-- CANVAS SCREEN -->
-  <div id="canvas-screen" class="screen hidden">
-    <div id="topbar">
-      <div class="topbar-logo">MindCloud</div>
-      <div class="topbar-hint">
-        <span>Drag cloud to move</span>
-        <span class="sep">·</span>
-        <span>Drag <strong style="color:#aaa">●</strong> handle to connect</span>
-        <span class="sep">·</span>
-        <span>Hover connection → click ✕ to remove</span>
-      </div>
-      <button id="reset-btn" onclick="resetApp()">← New Map</button>
+  <!-- ===== SCREEN 3: CANVAS MAP ===== -->
+  <section id="canvas-screen" class="screen hidden" aria-label="Interactive mind map canvas">
+    <div id="canvas-container">
+      <svg id="connections-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <!-- Clouds will be injected here by JavaScript -->
     </div>
-
-    <svg id="svg-layer" xmlns="http://www.w3.org/2000/svg"></svg>
-    <div id="clouds-container"></div>
-  </div>
+  </section>
 
   <script>
-  // ══════════════════════════════════════════════════════════════
-  //  PALETTE
-  // ══════════════════════════════════════════════════════════════
-  const PALETTE = [
-    { color:'#7c6cfc', bg:'rgba(124,108,252,0.11)', border:'rgba(124,108,252,0.28)' },
-    { color:'#4fd1c5', bg:'rgba(79,209,197,0.1)',   border:'rgba(79,209,197,0.26)'  },
-    { color:'#ff8a80', bg:'rgba(255,138,128,0.1)',  border:'rgba(255,138,128,0.26)' },
-    { color:'#ffd166', bg:'rgba(255,209,102,0.1)',  border:'rgba(255,209,102,0.26)' },
-    { color:'#a29bfe', bg:'rgba(162,155,254,0.1)',  border:'rgba(162,155,254,0.26)' },
-    { color:'#55efc4', bg:'rgba(85,239,196,0.1)',   border:'rgba(85,239,196,0.26)'  },
-    { color:'#fd79a8', bg:'rgba(253,121,168,0.1)',  border:'rgba(253,121,168,0.26)' },
-    { color:'#fdcb6e', bg:'rgba(253,203,110,0.1)',  border:'rgba(253,203,110,0.26)' },
-  ];
+    // ===== STATE MANAGEMENT =====
+    const state = {
+      clouds: [],
+      connections: [],
+      isDragging: false,
+      isConnecting: false,
+      dragOffset: { x: 0, y: 0 },
+      activeCloud: null,
+      connectionStart: null,
+      nextCloudId: 0,
+      nextConnectionId: 0
+    };
 
-  // ══════════════════════════════════════════════════════════════
-  //  STATE
-  // ══════════════════════════════════════════════════════════════
-  let clouds      = [];
-  let connections = [];
-  let dragging    = null;
-  let connecting  = null;
-  let uid         = 0;
+    // ===== DOM REFERENCES =====
+    const els = {
+      inputScreen: document.getElementById('input-screen'),
+      loadingScreen: document.getElementById('loading'),
+      canvasScreen: document.getElementById('canvas-screen'),
+      topbar: document.getElementById('topbar'),
+      wordInput: document.getElementById('word-input'),
+      submitBtn: document.getElementById('submit-btn'),
+      resetBtn: document.getElementById('reset-btn'),
+      errorMsg: document.getElementById('error-msg'),
+      canvasContainer: document.getElementById('canvas-container'),
+      connectionsSvg: document.getElementById('connections-svg')
+    };
 
-  const genId = (prefix) => `${prefix}_${uid++}`;
+    // ===== COLOR PALETTE FOR CLOUDS =====
+    const cloudColors = [
+      { bg: '#eef2ff', border: '#c7d2fe', text: '#3730a3' },
+      { bg: '#f0f9ff', border: '#bae6fd', text: '#0e7490' },
+      { bg: '#f0fdf4', border: '#bbf7d0', text: '#15803d' },
+      { bg: '#fff7ed', border: '#fed7aa', text: '#c2410c' },
+      { bg: '#fdf4ff', border: '#f5d0fe', text: '#a21caf' },
+      { bg: '#fefce8', border: '#fef08a', text: '#a16207' }
+    ];
 
-  // ══════════════════════════════════════════════════════════════
-  //  INPUT HANDLER
-  // ══════════════════════════════════════════════════════════════
-  async function handleMap() {
-    const raw   = document.getElementById('words-input').value;
-    const words = raw.split(/[,\n]+/).map(w => w.trim()).filter(Boolean);
-    const errEl = document.getElementById('error-msg');
-
-    if (words.length < 3) {
-      errEl.textContent = 'Please enter at least 3 words or phrases to map.';
-      errEl.classList.add('show');
-      return;
-    }
-
-    errEl.classList.remove('show');
-    document.getElementById('map-btn').disabled = true;
-    setLoading(true);
-
-    try {
-      const cats = await categorize(words);
-      buildScene(cats);
-      switchScreen('canvas');
-    } catch (err) {
-      console.error(err);
-      errEl.textContent = 'Error: ' + err.message;
-      errEl.classList.add('show');
-    } finally {
-      setLoading(false);
-      document.getElementById('map-btn').disabled = false;
-    }
-  }
-
-  // ══════════════════════════════════════════════════════════════
-  //  CATEGORIZE — calls our own Vercel serverless proxy
-  //  No API key here. Key lives only in Vercel environment vars.
-  // ══════════════════════════════════════════════════════════════
-  async function categorize(words) {
-    const res = await fetch('/api/categorize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ words }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Server error ${res.status}`);
-    }
-
-    const data = await res.json();
-
-    // 🔥 NEW: transform hierarchical → flat clouds
-    return transformTreeToClouds(data);
-  }
-
-
-  function transformTreeToClouds(tree) {
-    return (tree.children || []).map(cat => ({
-      id: genId('c'),
-      category: cat.name,
-      emoji: cat.emoji,
-      subcategories: (cat.children || []).map(sub => ({
-        name: sub.name,
-        words: (sub.children || []).map(w => w.name)
-      }))
-    }));
-  }
-  // ══════════════════════════════════════════════════════════════
-  //  BUILD SCENE
-  // ══════════════════════════════════════════════════════════════
-  function buildScene(cats) {
-    clouds      = [];
-    connections = [];
-    uid         = 0;
-
-    const W   = window.innerWidth;
-    const H   = window.innerHeight;
-    const TOP = 20;
-    const PAD = 30;
-    const CW  = 150;
-    const CH  = 170;
-    const maxDY = 15;
-    const cellW = 150;   // approximate cell width
-    const cols = Math.floor((W - PAD * 2) / cellW);
-    const rows = Math.ceil(cats.length / cols);
-    const cellH = (H - TOP - PAD * 2) / rows;
-
-    cats.forEach((cat, i) => {
-      const p = PALETTE[i % PALETTE.length];
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-
-      const x = PAD + col * cellW + Math.random() * 20;      // small random X offset
-      const y = TOP + PAD + row * cellH + Math.random() * maxDY;
-
-      const rr = () => Math.floor(Math.random() * 22 + 42);
-      const borderRadius = `${rr()}% ${rr()}% ${rr()}% ${rr()}% / ${rr()}% ${rr()}% ${rr()}% ${rr()}%`;
-      clouds.push({
-        id: cat.id,
-        category: cat.category,
-        emoji: cat.emoji,
-        subcategories: cat.subcategories, // keep subcategories here
-        x: Math.min(x, W - 100), // ensure cloud fits in width
-        y: Math.min(y, H - 60),  // ensure cloud fits in height
-        width: 120,
-        height: 50,
-        color:  p.color,
-        bg:     p.bg,
-        border: p.border,
-        borderRadius,
-        delay:  i * 0.07,
-        el: null,
+    // ===== NAVIGATION: SCREEN SWITCHING =====
+    function showScreen(screenElement, showTopbar = false) {
+      // Hide all screens first
+      [els.inputScreen, els.loadingScreen, els.canvasScreen].forEach(s => {
+        s.classList.add('hidden');
       });
-    });
-
-    renderScene();
-  }
-
-  // ══════════════════════════════════════════════════════════════
-  //  RENDER
-  // ══════════════════════════════════════════════════════════════
-  function renderScene() {
-    renderClouds();
-    renderConnections();
-  }
-
-  function renderClouds() {
-    const container = document.getElementById('clouds-container');
-    container.querySelectorAll('.cloud-node').forEach(el => el.remove());
-    clouds.forEach(cloud => {
-      const el = makeCloudEl(cloud);
-      container.appendChild(el);
-      cloud.el = el;
-    });
-  }
-
-  function makeCloudEl(cloud) {
-    const el = document.createElement('div');
-    el.className = 'cloud-node';
-    el.id = cloud.id;
-    el.setAttribute('data-cloud-id', cloud.id);
-    el.style.cssText = `
-      left: ${cloud.x}px;
-      top:  ${cloud.y}px;
-      width: ${cloud.width}px;
-      background: ${cloud.bg};
-      border: 1.5px solid ${cloud.border};
-      border-radius: ${cloud.borderRadius};
-      box-shadow: 0 6px 36px ${cloud.bg.replace('0.1','0.2')}, 0 1px 0 rgba(255,255,255,0.05) inset;
-      color: ${cloud.color};
-      animation-delay: ${cloud.delay}s;
-    `;
-
-    const hdivider = `border-bottom: 1px solid ${cloud.border};`;
-
-    el.innerHTML = `
-      <div class="cloud-x" onclick="deleteCloud('${cloud.id}')">✕</div>
-      <div class="cloud-header" style="${hdivider}">
-        <span class="cloud-emoji">${cloud.emoji}</span>
-        <span class="cloud-title" style="color:${cloud.color}">${escHtml(cloud.category)}</span>
-      </div>
-      <div class="cloud-words">
-  ${(cloud.subcategories || []).map(sub => `
-  <div class="subcat-block">
-    <div class="subcat-title">${escHtml(sub.name)}</div>
-    <div class="subcat-words">
-      ${sub.words.map(w => `<span class="word-pill">${escHtml(w)}</span>`).join('')}
-    </div>
-  </div>
-`).join('')}
-</div>
-      <div class="connect-handle"
-           style="color:${cloud.color};"
-           data-handle-for="${cloud.id}"></div>
-    `;
-
-    el.addEventListener('mousedown', onCloudBodyDown);
-    el.querySelector('.connect-handle').addEventListener('mousedown', onHandleDown);
-    return el;
-  }
-
-  function renderConnections() {
-    const svg       = document.getElementById('svg-layer');
-    const container = document.getElementById('clouds-container');
-
-    svg.querySelectorAll('.conn-group').forEach(g => g.remove());
-    container.querySelectorAll('.conn-mid-btn').forEach(b => b.remove());
-    const tempLine = svg.querySelector('.temp-line');
-
-    connections.forEach(conn => {
-      const from = clouds.find(c => c.id === conn.fromId);
-      const to   = clouds.find(c => c.id === conn.toId);
-      if (!from || !to) return;
-
-      const pts = lineEndpoints(from, to);
-      const d = bezierPath(
-              pts.x1, pts.y1,
-              pts.x2, pts.y2,
-              pts.fromSide,
-              pts.toSide
-      );
-      const gid = `grad_${conn.id}`;
-
-      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      g.className.baseVal = 'conn-group';
-      g.innerHTML = `
-        <defs>
-          <linearGradient id="${gid}" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%"   stop-color="${from.color}" stop-opacity="0.85"/>
-            <stop offset="100%" stop-color="${to.color}"   stop-opacity="0.85"/>
-          </linearGradient>
-        </defs>
-        <path d="${d}" stroke="url(#${gid})" stroke-width="7"  fill="none" stroke-opacity="0.12"/>
-        <path d="${d}" stroke="url(#${gid})" stroke-width="1.8" fill="none" stroke-linecap="round" style="filter:drop-shadow(0 0 5px ${from.color}88)"/>
-      `;
-      svg.insertBefore(g, tempLine);
-
-      const mid = midpoint(pts.x1, pts.y1, pts.x2, pts.y2);
-      const btn = document.createElement('button');
-      btn.className = 'conn-mid-btn';
-      btn.title = 'Remove connection';
-      btn.textContent = '✕';
-      btn.style.left = mid.x + 'px';
-      btn.style.top  = mid.y + 'px';
-      btn.addEventListener('click', () => deleteConnection(conn.id));
-      container.appendChild(btn);
-    });
-  }
-
-  function updateTempLine() {
-    const svg = document.getElementById('svg-layer');
-    let tl = svg.querySelector('.temp-line');
-    if (!connecting) { if (tl) tl.remove(); return; }
-    if (!tl) {
-      tl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      tl.className.baseVal = 'temp-line';
-      tl.setAttribute('fill', 'none');
-      tl.setAttribute('stroke', 'rgba(255,255,255,0.35)');
-      tl.setAttribute('stroke-width', '2');
-      tl.setAttribute('stroke-dasharray', '6 4');
-      tl.setAttribute('stroke-linecap', 'round');
-      svg.appendChild(tl);
-    }
-    tl.setAttribute('d', bezierPath(connecting.x1, connecting.y1, connecting.x2, connecting.y2));
-  }
-
-  // ══════════════════════════════════════════════════════════════
-  //  GEOMETRY
-  // ══════════════════════════════════════════════════════════════
-  function cloudRect(cloud) {
-    if (cloud.el) return cloud.el.getBoundingClientRect();
-    return { left: cloud.x, top: cloud.y, right: cloud.x + cloud.width, bottom: cloud.y + 180, width: cloud.width, height: 180 };
-  }
-
-  function lineEndpoints(from, to) {
-    const fr = cloudRect(from);
-    const tr = cloudRect(to);
-
-    const c1 = {
-      x: fr.left + fr.width / 2,
-      y: fr.top + fr.height / 2
-    };
-
-    const c2 = {
-      x: tr.left + tr.width / 2,
-      y: tr.top + tr.height / 2
-    };
-
-    const dx = c2.x - c1.x;
-    const dy = c2.y - c1.y;
-
-    function getSnapPoint(rect, side) {
-      switch (side) {
-        case 'left':
-          return { x: rect.left, y: rect.top + rect.height / 2 };
-        case 'right':
-          return { x: rect.left + rect.width, y: rect.top + rect.height / 2 };
-        case 'top':
-          return { x: rect.left + rect.width / 2, y: rect.top };
-        case 'bottom':
-          return { x: rect.left + rect.width / 2, y: rect.top + rect.height };
-      }
-    }
-
-    let fromSide, toSide;
-
-    // 🔥 Decide orientation
-    if (Math.abs(dx) > Math.abs(dy)) {
-      // Horizontal layout
-      if (dx > 0) {
-        fromSide = 'right';
-        toSide   = 'left';
-      } else {
-        fromSide = 'left';
-        toSide   = 'right';
-      }
-    } else {
-      // Vertical layout
-      if (dy > 0) {
-        fromSide = 'bottom';
-        toSide   = 'top';
-      } else {
-        fromSide = 'top';
-        toSide   = 'bottom';
-      }
-    }
-
-    const p1 = getSnapPoint(fr, fromSide);
-    const p2 = getSnapPoint(tr, toSide);
-
-    return {
-      x1: p1.x,
-      y1: p1.y,
-      x2: p2.x,
-      y2: p2.y,
-      fromSide,
-      toSide
-    };
-  }
-
-  function bezierPath(x1, y1, x2, y2, fromSide, toSide) {
-    const offset = 60;
-
-    let cx1 = x1;
-    let cy1 = y1;
-    let cx2 = x2;
-    let cy2 = y2;
-
-    if (fromSide === 'right') cx1 += offset;
-    if (fromSide === 'left')  cx1 -= offset;
-    if (fromSide === 'top')   cy1 -= offset;
-    if (fromSide === 'bottom')cy1 += offset;
-
-    if (toSide === 'right') cx2 += offset;
-    if (toSide === 'left')  cx2 -= offset;
-    if (toSide === 'top')   cy2 -= offset;
-    if (toSide === 'bottom')cy2 += offset;
-
-    return `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
-  }
-
-  function midpoint(x1, y1, x2, y2) { return { x: (x1+x2)/2, y: (y1+y2)/2 }; }
-
-  function hitCloud(e, excludeId) {
-    return clouds.find(c => {
-      if (c.id === excludeId || !c.el) return false;
-      const r = c.el.getBoundingClientRect();
-      return e.clientX >= r.left && e.clientX <= r.right
-          && e.clientY >= r.top  && e.clientY <= r.bottom;
-    });
-  }
-
-  // ══════════════════════════════════════════════════════════════
-  //  MOUSE EVENTS
-  // ══════════════════════════════════════════════════════════════
-  function onCloudBodyDown(e) {
-    const el = e.currentTarget;
-    if (e.target.closest('.connect-handle') || e.target.closest('.cloud-x')) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const cloudId = el.getAttribute('data-cloud-id');
-    const cloud   = clouds.find(c => c.id === cloudId);
-    dragging = { cloudId, offsetX: e.clientX - cloud.x, offsetY: e.clientY - cloud.y };
-    el.classList.add('is-dragging');
-  }
-
-  function onHandleDown(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    const cloudId = e.currentTarget.getAttribute('data-handle-for');
-    const cloud   = clouds.find(c => c.id === cloudId);
-    const r       = cloud.el.getBoundingClientRect();
-    connecting = {
-      fromId: cloudId,
-      x1: r.left + r.width / 2, y1: r.top + r.height / 2,
-      x2: e.clientX, y2: e.clientY,
-    };
-    clouds.forEach(c => { if (c.id !== cloudId && c.el) c.el.classList.add('is-dim'); });
-  }
-
-  let rafId = null;
-  document.addEventListener('mousemove', e => {
-    if (!dragging && !connecting) return;
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = requestAnimationFrame(() => {
-      if (dragging) {
-        const cloud = clouds.find(c => c.id === dragging.cloudId);
-        if (!cloud) return;
-        cloud.x = e.clientX - dragging.offsetX;
-        cloud.y = e.clientY - dragging.offsetY;
-        cloud.el.style.left = cloud.x + 'px';
-        cloud.el.style.top  = cloud.y + 'px';
-        renderConnections();
-      }
-      if (connecting) {
-        connecting.x2 = e.clientX;
-        connecting.y2 = e.clientY;
-        updateTempLine();
-        const target = hitCloud(e, connecting.fromId);
-        clouds.forEach(c => {
-          if (c.id === connecting.fromId || !c.el) return;
-          if (c === target) { c.el.classList.remove('is-dim'); c.el.classList.add('is-target'); }
-          else              { c.el.classList.add('is-dim');    c.el.classList.remove('is-target'); }
+      
+      // Show target screen
+      screenElement.classList.remove('hidden');
+      
+      // Toggle topbar visibility
+      els.topbar.style.display = showTopbar ? 'flex' : 'none';
+      
+      // Allow layout to recalculate after display change
+      if (screenElement === els.canvasScreen) {
+        // Ensure canvas container has correct dimensions
+        requestAnimationFrame(() => {
+          els.canvasContainer.style.height = `calc(100dvh - ${els.topbar.offsetHeight}px)`;
         });
       }
+    }
+
+    // ===== INPUT VALIDATION & SUBMISSION =====
+    function parseWords(input) {
+      return input
+        .split(/[\n,]+/)
+        .map(w => w.trim())
+        .filter(w => w.length > 0)
+        .slice(0, 50); // Limit to prevent overload
+    }
+
+    els.submitBtn.addEventListener('click', async () => {
+      const words = parseWords(els.wordInput.value);
+      
+      if (words.length < 3) {
+        els.errorMsg.textContent = 'Please enter at least 3 words or phrases to map.';
+        els.wordInput.focus();
+        return;
+      }
+      
+      els.errorMsg.textContent = '';
+      showScreen(els.loadingScreen);
+      
+      try {
+        const response = await fetch('/api/categorize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ words })
+        });
+        
+        if (!response.ok) throw new Error('AI service unavailable');
+        
+        const data = await response.json();
+        renderCanvas(data.categories);
+        showScreen(els.canvasScreen, true);
+        
+      } catch (err) {
+        console.error('Mapping failed:', err);
+        els.errorMsg.textContent = 'Failed to connect to AI. Please try again.';
+        showScreen(els.inputScreen);
+      }
     });
-  });
 
-  document.addEventListener('mouseup', e => {
-    if (dragging) {
-      const cloud = clouds.find(c => c.id === dragging.cloudId);
-      if (cloud && cloud.el) cloud.el.classList.remove('is-dragging');
-      dragging = null;
+    // ===== CANVAS RENDERING =====
+    function renderCanvas(categories) {
+      // Clear previous state
+      state.clouds.forEach(c => c.element?.remove());
+      state.connections.forEach(c => {
+        c.line?.remove();
+        c.deleteBtn?.remove();
+      });
+      state.clouds = [];
+      state.connections = [];
+      els.connectionsSvg.innerHTML = '';
+      els.canvasContainer.querySelectorAll('.cloud').forEach(el => el.remove());
+      
+      const containerRect = els.canvasContainer.getBoundingClientRect();
+      const padding = 30;
+      
+      // Generate clouds with randomized positions
+      categories.forEach((cat, index) => {
+        const color = cloudColors[index % cloudColors.length];
+        const cloud = document.createElement('div');
+        cloud.className = 'cloud';
+        cloud.dataset.id = `cloud-${state.nextCloudId++}`;
+        cloud.style.backgroundColor = color.bg;
+        cloud.style.borderColor = color.border;
+        
+        // Random position within viewport bounds
+        const left = padding + Math.random() * (containerRect.width - 300 - padding * 2);
+        const top = padding + 80 + Math.random() * (containerRect.height - 200 - padding * 2 - 80);
+        
+        cloud.style.left = `${left}px`;
+        cloud.style.top = `${top}px`;
+        
+        cloud.innerHTML = `
+          <div class="cloud-header">
+            <span class="cloud-emoji">${cat.emoji || '💭'}</span>
+            <span>${cat.title}</span>
+          </div>
+          <div class="cloud-words">
+            ${cat.words.map(w => `<span class="cloud-word">${escapeHtml(w)}</span>`).join('')}
+          </div>
+          <div class="cloud-handle" title="Drag to connect" aria-label="Connection handle">●</div>
+          <button class="cloud-delete" aria-label="Delete cloud">×</button>
+        `;
+        
+        // Store cloud state
+        const cloudState = {
+          id: cloud.dataset.id,
+          element: cloud,
+          category: cat,
+          x: left,
+          y: top,
+          color
+        };
+        state.clouds.push(cloudState);
+        
+        // Drag functionality
+        setupCloudDrag(cloud, cloudState);
+        
+        // Delete functionality
+        cloud.querySelector('.cloud-delete').addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteCloud(cloudState);
+        });
+        
+        // Connection handle
+        const handle = cloud.querySelector('.cloud-handle');
+        handle.addEventListener('mousedown', (e) => startConnection(e, cloudState));
+        handle.addEventListener('touchstart', (e) => startConnection(e, cloudState), { passive: true });
+        
+        els.canvasContainer.appendChild(cloud);
+      });
     }
-    if (connecting) {
-      const target = hitCloud(e, connecting.fromId);
-      if (target) addConnection(connecting.fromId, target.id);
-      connecting = null;
-      updateTempLine();
-      clouds.forEach(c => { if (c.el) c.el.classList.remove('is-dim', 'is-target'); });
-      renderConnections();
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
     }
-  });
 
-  // ══════════════════════════════════════════════════════════════
-  //  CONNECTION CRUD
-  // ══════════════════════════════════════════════════════════════
-  function addConnection(fromId, toId) {
-    const dup = connections.some(c =>
-      (c.fromId === fromId && c.toId === toId) ||
-      (c.fromId === toId   && c.toId === fromId)
-    );
-    if (dup) return;
-    connections.push({ id: genId('k'), fromId, toId });
-    renderConnections();
-  }
+    // ===== CLOUD DRAG LOGIC =====
+    function setupCloudDrag(cloudEl, cloudState) {
+      let startX, startY, initialLeft, initialTop;
+      
+      const onMove = (e) => {
+        if (!state.isDragging) return;
+        e.preventDefault();
+        
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        
+        let newLeft = initialLeft + (clientX - startX);
+        let newTop = initialTop + (clientY - startY);
+        
+        // Boundary constraints
+        const rect = els.canvasContainer.getBoundingClientRect();
+        const cloudRect = cloudEl.getBoundingClientRect();
+        newLeft = Math.max(10, Math.min(newLeft, rect.width - cloudRect.width - 10));
+        newTop = Math.max(10, Math.min(newTop, rect.height - cloudRect.height - 10));
+        
+        cloudState.x = newLeft;
+        cloudState.y = newTop;
+        cloudEl.style.left = `${newLeft}px`;
+        cloudEl.style.top = `${newTop}px`;
+        
+        // Update connected lines
+        updateConnectionLines();
+      };
+      
+      const onEnd = () => {
+        if (!state.isDragging) return;
+        state.isDragging = false;
+        cloudEl.style.cursor = 'grab';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onEnd);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onEnd);
+      };
+      
+      cloudEl.addEventListener('mousedown', (e) => {
+        if (e.target.classList.contains('cloud-delete') || 
+            e.target.classList.contains('cloud-handle')) return;
+        
+        e.preventDefault();
+        state.isDragging = true;
+        state.activeCloud = cloudState;
+        startX = e.clientX;
+        startY = e.clientY;
+        initialLeft = cloudState.x;
+        initialTop = cloudState.y;
+        cloudEl.style.cursor = 'grabbing';
+        
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onEnd);
+      });
+      
+      cloudEl.addEventListener('touchstart', (e) => {
+        if (e.target.classList.contains('cloud-delete') || 
+            e.target.classList.contains('cloud-handle')) return;
+        
+        state.isDragging = true;
+        state.activeCloud = cloudState;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        initialLeft = cloudState.x;
+        initialTop = cloudState.y;
+        
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onEnd);
+      }, { passive: true });
+    }
 
-  function deleteConnection(connId) {
-    connections = connections.filter(c => c.id !== connId);
-    renderConnections();
-  }
+    // ===== CONNECTION LOGIC =====
+    function startConnection(e, sourceCloud) {
+      e.stopPropagation();
+      state.isConnecting = true;
+      state.connectionStart = sourceCloud;
+      
+      const tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      tempLine.id = 'temp-connection';
+      tempLine.setAttribute('stroke', 'rgba(102,126,234,0.8)');
+      tempLine.setAttribute('stroke-width', '3');
+      tempLine.setAttribute('stroke-dasharray', '6,4');
+      els.connectionsSvg.appendChild(tempLine);
+      
+      const onMove = (e) => {
+        if (!state.isConnecting) return;
+        e.preventDefault();
+        
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const containerRect = els.canvasContainer.getBoundingClientRect();
+        
+        const x1 = sourceCloud.x + 100; // Approximate center
+        const y1 = sourceCloud.y + 40;
+        const x2 = clientX - containerRect.left;
+        const y2 = clientY - containerRect.top;
+        
+        tempLine.setAttribute('x1', x1);
+        tempLine.setAttribute('y1', y1);
+        tempLine.setAttribute('x2', x2);
+        tempLine.setAttribute('y2', y2);
+      };
+      
+      const onEnd = (e) => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onEnd);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onEnd);
+        
+        const temp = document.getElementById('temp-connection');
+        if (temp) temp.remove();
+        
+        if (!state.isConnecting) return;
+        state.isConnecting = false;
+        
+        // Check if dropped on another cloud
+        const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+        const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+        
+        const targetEl = document.elementFromPoint(clientX, clientY);
+        const targetCloudEl = targetEl?.closest('.cloud');
+        
+        if (targetCloudEl && targetCloudEl !== sourceCloud.element) {
+          const targetCloud = state.clouds.find(c => c.element === targetCloudEl);
+          if (targetCloud) createConnection(sourceCloud, targetCloud);
+        }
+      };
+      
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onEnd);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onEnd);
+    }
 
-  function deleteCloud(cloudId) {
-    clouds      = clouds.filter(c => c.id !== cloudId);
-    connections = connections.filter(c => c.fromId !== cloudId && c.toId !== cloudId);
-    renderScene();
-  }
+    function createConnection(source, target) {
+      // Avoid duplicates
+      const exists = state.connections.some(c => 
+        (c.source === source.id && c.target === target.id) ||
+        (c.source === target.id && c.target === source.id)
+      );
+      if (exists) return;
+      
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.classList.add('connection-line');
+      line.dataset.id = `conn-${state.nextConnectionId++}`;
+      
+      const deleteBtn = document.createElement('div');
+      deleteBtn.className = 'connection-delete';
+      deleteBtn.textContent = '✕';
+      deleteBtn.setAttribute('aria-label', 'Remove connection');
+      
+      line.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeConnection(line.dataset.id);
+      });
+      
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeConnection(line.dataset.id);
+      });
+      
+      els.connectionsSvg.appendChild(line);
+      els.canvasContainer.appendChild(deleteBtn);
+      
+      const conn = {
+        id: line.dataset.id,
+        source: source.id,
+        target: target.id,
+        line,
+        deleteBtn
+      };
+      
+      state.connections.push(conn);
+      updateConnectionLines();
+    }
 
-  // ══════════════════════════════════════════════════════════════
-  //  UTILS
-  // ══════════════════════════════════════════════════════════════
-  function switchScreen(name) {
-    document.getElementById('input-screen').classList.toggle('hidden', name !== 'input');
-    document.getElementById('canvas-screen').classList.toggle('hidden', name !== 'canvas');
-  }
+    function updateConnectionLines() {
+      state.connections.forEach(conn => {
+        const source = state.clouds.find(c => c.id === conn.source);
+        const target = state.clouds.find(c => c.id === conn.target);
+        if (!source || !target) return;
+        
+        // Calculate centers
+        const x1 = source.x + 100;
+        const y1 = source.y + 40;
+        const x2 = target.x + 100;
+        const y2 = target.y + 40;
+        
+        conn.line.setAttribute('x1', x1);
+        conn.line.setAttribute('y1', y1);
+        conn.line.setAttribute('x2', x2);
+        conn.line.setAttribute('y2', y2);
+        
+        // Position delete button at midpoint
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        conn.deleteBtn.style.left = `${midX - 11}px`;
+        conn.deleteBtn.style.top = `${midY - 11}px`;
+      });
+    }
 
-  function resetApp() {
-    switchScreen('input');
-    clouds = []; connections = [];
-    document.getElementById('clouds-container').innerHTML = '';
-    document.getElementById('svg-layer').innerHTML = '';
-  }
+    function removeConnection(connId) {
+      const idx = state.connections.findIndex(c => c.id === connId);
+      if (idx === -1) return;
+      
+      const conn = state.connections[idx];
+      conn.line?.remove();
+      conn.deleteBtn?.remove();
+      state.connections.splice(idx, 1);
+    }
 
-  function setLoading(on) {
-    document.getElementById('loading').classList.toggle('show', on);
-  }
+    function deleteCloud(cloudState) {
+      // Remove associated connections
+      state.connections = state.connections.filter(conn => {
+        if (conn.source === cloudState.id || conn.target === cloudState.id) {
+          conn.line?.remove();
+          conn.deleteBtn?.remove();
+          return false;
+        }
+        return true;
+      });
+      
+      cloudState.element?.remove();
+      state.clouds = state.clouds.filter(c => c.id !== cloudState.id);
+    }
 
-  function escHtml(str) {
-    return String(str)
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+    // ===== RESET FUNCTIONALITY =====
+    els.resetBtn.addEventListener('click', () => {
+      // Clear canvas state
+      state.clouds.forEach(c => c.element?.remove());
+      state.connections.forEach(c => {
+        c.line?.remove();
+        c.deleteBtn?.remove();
+      });
+      state.clouds = [];
+      state.connections = [];
+      els.connectionsSvg.innerHTML = '';
+      
+      // Return to input screen
+      els.wordInput.value = '';
+      els.errorMsg.textContent = '';
+      showScreen(els.inputScreen);
+    });
 
-  document.getElementById('words-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter' && e.metaKey) handleMap();
-  });
+    // ===== INITIAL SETUP =====
+    // Ensure proper viewport sizing on load and resize
+    function updateCanvasHeight() {
+      if (!els.canvasScreen.classList.contains('hidden')) {
+        els.canvasContainer.style.height = `calc(100dvh - ${els.topbar.offsetHeight}px)`;
+      }
+    }
+    
+    window.addEventListener('resize', updateCanvasHeight);
+    window.addEventListener('load', updateCanvasHeight);
+    
+    // Start on input screen
+    showScreen(els.inputScreen);
+    
+    // Allow Enter key to submit (with Ctrl/Cmd for newlines)
+    els.wordInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        els.submitBtn.click();
+      }
+    });
   </script>
 </body>
 </html>
