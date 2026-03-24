@@ -506,48 +506,78 @@
     }
 
     // ===== AI CATEGORIZATION (calls your API) =====
+    async function handleMap() {
+      const raw   = els.wordsInput.value;
+      const words = raw.split(/[,\n]+/).map(w => w.trim()).filter(Boolean);
+      const errEl = els.errorMsg;
+
+      if (words.length < 3) {
+        errEl.textContent = 'Please enter at least 3 words or phrases to map.';
+        errEl.classList.add('show');
+        return;
+      }
+
+      errEl.classList.remove('show');
+      els.mapBtn.disabled = true;
+      setLoading(true);
+
+      try {
+        const cats = await categorize(words);
+        buildScene(cats);
+        switchScreen('canvas');
+      } catch (err) {
+        console.error(err);
+        errEl.textContent = 'Error: ' + err.message;
+        errEl.classList.add('show');
+        switchScreen('input');
+      } finally {
+        setLoading(false);
+        els.mapBtn.disabled = false;
+      }
+    }
+
    // ===== AI CATEGORIZATION (handles various response formats) =====
-async function categorize(words) {
-  const response = await fetch('/api/categorize', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ words })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unknown error');
-    throw new Error(`API error: ${response.status} - ${errorText.slice(0, 100)}`);
-  }
-
-  const data = await response.json();
-  console.log('API Response:', data); // Debug: check console for actual structure
-  
-  // Handle different possible response structures
-  let categories;
-  if (Array.isArray(data)) {
-    categories = data;
-  } else if (data.categories && Array.isArray(data.categories)) {
-    categories = data.categories;
-  } else if (data.data && Array.isArray(data.data)) {
-    categories = data.data;
-  } else if (data.result && Array.isArray(data.result)) {
-    categories = data.result;
-  } else if (data.groups && Array.isArray(data.groups)) {
-    categories = data.groups;
-  } else {
-    console.warn('Unexpected API response structure:', data);
-    throw new Error('Invalid response format from AI service');
-  }
-
-  // Normalize each category to expected format
-  categories = categories.map(cat => ({
-    title: String(cat.title || cat.name || cat.category || cat.group || 'Untitled'),
-    emoji: String(cat.emoji || cat.icon || '💭'),
-    words: Array.isArray(cat.words) ? cat.words : (Array.isArray(cat.items) ? cat.items : (Array.isArray(cat.concepts) ? cat.concepts : []))
-  }));
-
-  return categories;
-}
+    async function categorize(words) {
+      const response = await fetch('/api/categorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ words })
+      });
+    
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        throw new Error(`API error: ${response.status} - ${errorText.slice(0, 100)}`);
+      }
+    
+      const data = await response.json();
+      console.log('API Response:', data); // Debug: check console for actual structure
+      
+      // Handle different possible response structures
+      let categories;
+      if (Array.isArray(data)) {
+        categories = data;
+      } else if (data.categories && Array.isArray(data.categories)) {
+        categories = data.categories;
+      } else if (data.data && Array.isArray(data.data)) {
+        categories = data.data;
+      } else if (data.result && Array.isArray(data.result)) {
+        categories = data.result;
+      } else if (data.groups && Array.isArray(data.groups)) {
+        categories = data.groups;
+      } else {
+        console.warn('Unexpected API response structure:', data);
+        throw new Error('Invalid response format from AI service');
+      }
+    
+      // Normalize each category to expected format
+      categories = categories.map(cat => ({
+        title: String(cat.title || cat.name || cat.category || cat.group || 'Untitled'),
+        emoji: String(cat.emoji || cat.icon || '💭'),
+        words: Array.isArray(cat.words) ? cat.words : (Array.isArray(cat.items) ? cat.items : (Array.isArray(cat.concepts) ? cat.concepts : []))
+      }));
+    
+      return categories;
+    }
 
     // ===== BUILD CANVAS SCENE =====
     function buildScene(categories) {
